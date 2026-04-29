@@ -1,5 +1,18 @@
-import { useRef, useState } from "react";
-import { useFetcher } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { useFetcher, useParams } from "react-router";
+
+function mergeNotes(base: string, local: string, remote: string): string {
+  if (remote === local) return local;
+  if (remote === base) return local; // only local changed
+  if (local === base) return remote; // only remote changed
+  // Both appended to base — concatenate the remote addition
+  if (local.startsWith(base) && remote.startsWith(base)) {
+    const remoteNew = remote.slice(base.length).trimStart();
+    return local + (local.endsWith("\n") ? "" : "\n") + remoteNew;
+  }
+  // Fallback: append remote below a separator
+  return local + "\n\n" + remote;
+}
 import type { Phase } from "~/lib/phases";
 import { BrandValuesPanel, type BrandData } from "./BrandValuesPanel";
 import { ProjectBriefPanel, type BriefData } from "./ProjectBriefPanel";
@@ -18,12 +31,48 @@ interface Props {
 }
 
 export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClientNotes, isAdmin, brand, brief, onStepToggle }: Props) {
+  const { slug } = useParams();
   const [open, setOpen] = useState(phase.n === 0);
   const [adminNotes, setAdminNotes] = useState(initialAdminNotes);
   const [clientNotes, setClientNotes] = useState(initialClientNotes);
   const fetcher = useFetcher({});
+  const pollFetcher = useFetcher<{ clientNotes: string }>({});
   const adminDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const clientDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const clientNotesValueRef = useRef(clientNotes);
+  // Tracks the last value we know the server has, used as the merge base
+  const serverBaseRef = useRef(initialClientNotes);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  clientNotesValueRef.current = clientNotes;
+
+  // Poll for shared notes every 5s
+  useEffect(() => {
+    if (phase.n === 0) return;
+    const id = setInterval(() => {
+      pollFetcher.load(`/project/${slug}/shared-notes?phase=${phase.n}`);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [slug, phase.n]);
+
+  useEffect(() => {
+    if (!pollFetcher.data) return;
+    const incoming = pollFetcher.data.clientNotes;
+    if (incoming === serverBaseRef.current) return; // server unchanged since last poll
+    const merged = mergeNotes(serverBaseRef.current, clientNotesValueRef.current, incoming);
+    serverBaseRef.current = incoming;
+    if (merged === clientNotesValueRef.current) return;
+    // Preserve cursor position when updating a focused textarea
+    const el = textareaRef.current;
+    const start = el?.selectionStart ?? 0;
+    const end = el?.selectionEnd ?? 0;
+    setClientNotes(merged);
+    if (el === document.activeElement) {
+      requestAnimationFrame(() => {
+        el!.selectionStart = start;
+        el!.selectionEnd = end;
+      });
+    }
+  }, [pollFetcher.data]);
 
   const completedCount = checkedSteps.filter(Boolean).length;
   const totalCount = phase.steps.length;
@@ -45,6 +94,7 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
     setClientNotes(value);
     clearTimeout(clientDebounceRef.current);
     clientDebounceRef.current = setTimeout(() => {
+      serverBaseRef.current = value;
       fetcher.submit(
         { intent: "update-notes", phaseNumber: String(phase.n), noteType: "client", notes: value },
         { method: "post" },
@@ -213,7 +263,9 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
                   <h4 className="font-display text-[10px] font-semibold tracking-widest uppercase text-muted mb-2">
                     Shared Notes
                   </h4>
+
                   <textarea
+                    ref={textareaRef}
                     value={clientNotes}
                     onChange={(e) => handleClientNotesChange(e.target.value)}
                     placeholder="Agreed decisions, links, values confirmed with client…"
