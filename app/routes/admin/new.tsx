@@ -26,7 +26,7 @@ export async function action({ request }: Route.ActionArgs) {
   // Seed default brand values
   await db.insert(brandValues).values({ projectId: project.id });
 
-  return redirect(`/admin?created=${slug}`);
+  return redirect(`/?created=${slug}`);
 }
 
 export default function AdminNew({ actionData }: Route.ComponentProps) {
@@ -35,10 +35,10 @@ export default function AdminNew({ actionData }: Route.ComponentProps) {
       <div className="max-w-lg mx-auto">
         <div className="mb-8">
           <Link
-            to="/admin"
+            to="/"
             className="font-display text-[11px] font-semibold tracking-widest uppercase text-faint hover:text-muted transition-colors"
           >
-            ← Back
+            ← Dashboard
           </Link>
         </div>
 

@@ -17,7 +17,7 @@ export async function action({ request }: Route.ActionArgs) {
   const session = await getSession(request.headers.get("Cookie"));
   session.set("isAdmin", true);
 
-  return redirect("/admin", {
+  return redirect("/", {
     headers: { "Set-Cookie": await commitSession(session) },
   });
 }
@@ -58,7 +58,7 @@ export default function AdminLogin({ actionData }: Route.ComponentProps) {
 
         <div className="mt-8 text-center">
           <a
-            href="/"
+            href="/view"
             className="font-display text-[11px] font-semibold tracking-widest uppercase text-faint hover:text-muted transition-colors"
           >
             ← Client Portal

@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { Link, redirect } from "react-router";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
 import { db } from "~/db/index.server";
 import { brandValues, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
@@ -14,6 +15,10 @@ export function meta({ data: loaderData }: Route.MetaArgs) {
 export async function loader({ params, request }: Route.LoaderArgs) {
   const session = await getSession(request.headers.get("Cookie"));
   const isAdmin = session.get("isAdmin") ?? false;
+
+  if (!isAdmin) {
+    throw redirect(`/view/${params.slug}`);
+  }
 
   const project = await db.query.projects.findFirst({
     where: eq(projects.slug, params.slug),
@@ -172,31 +177,28 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
   return (
     <main className="min-h-screen bg-bg py-12 px-6">
       <div className="max-w-215 mx-auto">
+        {/* Back link */}
+        <div className="mb-8">
+          <Link
+            to="/"
+            className="font-display text-[11px] font-semibold tracking-widest uppercase text-faint hover:text-muted transition-colors"
+          >
+            ← Dashboard
+          </Link>
+        </div>
+
         {/* Header */}
         <div className="mb-12">
           <p className="font-display text-[10px] font-semibold tracking-[0.18em] uppercase text-muted mb-3">
-            {isAdmin ? "Freelance Workflow" : project.businessName || project.name}
+            Freelance Workflow
           </p>
           <h1 className="font-display text-4xl font-extrabold text-text leading-tight mb-3">
-            {isAdmin ? (
-              <>
-                Local Business <span className="text-p1">Web</span>
-                <br />
-                Client Playbook
-              </>
-            ) : (
-              <>
-                {project.clientName ? `${project.clientName}'s` : "Your"}{" "}
-                <span className="text-p1">Project</span>
-                <br />
-                Overview
-              </>
-            )}
+            Local Business <span className="text-p1">Web</span>
+            <br />
+            Client Playbook
           </h1>
           <p className="text-muted text-[15px] max-w-md">
-            {isAdmin
-              ? "From first discovery call to recurring retainer income — track progress live with your client."
-              : "Track the progress of your project and complete your action items below."}
+            From first discovery call to recurring retainer income — track progress live with your client.
           </p>
         </div>
 
