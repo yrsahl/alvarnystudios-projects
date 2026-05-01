@@ -1,4 +1,3 @@
 {
-  "window.autoDetectColorScheme": true,
-  "js/ts.tsdk.path": "node_modules/typescript/lib"
+  "window.autoDetectColorScheme": true
 }

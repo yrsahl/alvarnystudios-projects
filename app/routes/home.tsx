@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { FlaskConical, LayoutDashboard, Plus, Search } from "lucide-react";
+import { Globe, LayoutDashboard, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Form, Link, redirect } from "react-router";
 import { ProjectCard } from "~/components/ProjectCard";
@@ -8,9 +8,8 @@ import { Input } from "~/components/ui/input";
 import { db } from "~/db/index.server";
 import { phaseSteps, projects } from "~/db/schema";
 import { PHASES } from "~/lib/phases";
-import { tools } from "~/lib/tools-data";
-import { cn } from "~/lib/utils";
 import { destroySession, getSession, requireAdmin } from "~/lib/session.server";
+import { cn } from "~/lib/utils";
 import type { Route } from "./+types/home";
 
 export function meta(_: Route.MetaArgs) {
@@ -68,7 +67,10 @@ export async function action({ request }: Route.ActionArgs) {
   return null;
 }
 
-// ── Phase distribution chart (adapted StageChart) ──────────────────────────
+// Short labels so the chart legend never overflows
+const PHASE_SHORT = ["Discovery", "Brand", "Dev", "SEO", "Launch", "Retainer"] as const;
+
+// ── Phase distribution chart ────────────────────────────────────────────────
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -97,7 +99,7 @@ function PhaseChart({ phaseCounts }: { phaseCounts: { phase: (typeof PHASES)[0];
   }
 
   return (
-    <div className="flex items-center gap-8">
+    <div className="flex items-center gap-6">
       <svg width={120} height={120} className="shrink-0">
         {total === 0 ? (
           <circle cx={cx} cy={cy} r={r} className="fill-muted stroke-border" strokeWidth={1} />
@@ -111,19 +113,37 @@ function PhaseChart({ phaseCounts }: { phaseCounts: { phase: (typeof PHASES)[0];
           )
         )}
         <circle cx={cx} cy={cy} r={32} className="fill-card" />
-        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" className="fill-foreground" style={{ fontSize: 16, fontWeight: 600 }}>
+        <text
+          x={cx}
+          y={cy}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className="fill-foreground"
+          style={{ fontSize: 16, fontWeight: 600 }}
+        >
           {total}
         </text>
-        <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>
+        <text
+          x={cx}
+          y={cy + 16}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className="fill-muted-foreground"
+          style={{ fontSize: 10 }}
+        >
           total
         </text>
       </svg>
-      <div className="flex flex-col gap-2.5">
-        {slices.map((s) => (
-          <div key={s.phase.n} className="flex items-center gap-3">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: s.phase.color }} />
-            <span className="w-24 text-sm text-muted-foreground truncate">{s.phase.title}</span>
-            <span className="text-sm font-semibold tabular-nums" style={{ color: s.phase.color }}>{s.count}</span>
+
+      {/* Two-column legend so all 6 labels fit comfortably */}
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+        {slices.map((s, i) => (
+          <div key={s.phase.n} className="flex items-center gap-2" title={s.phase.title}>
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.phase.color }} />
+            <span className="text-sm text-muted-foreground">{PHASE_SHORT[i]}</span>
+            <span className="ml-auto text-sm font-semibold tabular-nums pl-2" style={{ color: s.phase.color }}>
+              {s.count}
+            </span>
           </div>
         ))}
       </div>
@@ -136,31 +156,37 @@ function PhaseChart({ phaseCounts }: { phaseCounts: { phase: (typeof PHASES)[0];
 export default function Home({ loaderData }: Route.ComponentProps) {
   const { projects } = loaderData;
   const [search, setSearch] = useState("");
-  const [activePhase, setActivePhase] = useState<number | null>(null);
+  const [lastClicked, setLastClicked] = useState<number | null>(null);
 
   const phaseCounts = PHASES.map((phase) => ({
     phase,
     count: projects.filter((p) => p.currentPhaseIndex === phase.n).length,
   }));
 
-  const filtered = useMemo(() => {
-    const byPhase = activePhase !== null
-      ? projects.filter((p) => p.currentPhaseIndex === activePhase)
-      : projects;
-    if (!search.trim()) return byPhase;
+  // Apply search across all projects, then group by phase — never hide sections entirely
+  const visibleProjects = useMemo(() => {
+    if (!search.trim()) return projects;
     const q = search.toLowerCase();
-    return byPhase.filter(
+    return projects.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.clientName.toLowerCase().includes(q) ||
         p.businessName.toLowerCase().includes(q),
     );
-  }, [projects, search, activePhase]);
+  }, [projects, search]);
 
-  function handleSidebarClick(phaseN: number | null) {
-    setActivePhase(phaseN);
-    const target = phaseN === null ? "overview" : `phase-${phaseN}`;
-    document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const phaseGroups = useMemo(
+    () =>
+      PHASES.map((phase) => ({
+        phase,
+        projects: visibleProjects.filter((p) => p.currentPhaseIndex === phase.n),
+      })).filter(({ projects }) => projects.length > 0),
+    [visibleProjects],
+  );
+
+  function scrollTo(id: string, phaseN: number | null) {
+    setLastClicked(phaseN);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return (
@@ -192,9 +218,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="flex items-center gap-2">
           <a
             href="/view"
+            target="_blank"
             className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
-            <FlaskConical className="h-3.5 w-3.5" />
+            <Globe className="h-3.5 w-3.5" />
             Client Portal
           </a>
           <Link
@@ -219,10 +246,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <aside className="sticky top-14 h-[calc(100vh-3.5rem)] w-56 shrink-0 border-r border-border bg-sidebar p-4 overflow-y-auto">
           <nav className="flex flex-col gap-1">
             <button
-              onClick={() => handleSidebarClick(null)}
+              onClick={() => scrollTo("overview", null)}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                activePhase === null
+                lastClicked === null
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               )}
@@ -232,25 +259,28 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </button>
 
             <div className="my-3 px-3">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Phases
-              </span>
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Phases</span>
             </div>
 
-            {phaseCounts.map(({ phase, count }) => (
+            {phaseCounts.map(({ phase, count }, i) => (
               <button
                 key={phase.n}
-                onClick={() => handleSidebarClick(activePhase === phase.n ? null : phase.n)}
+                onClick={() => scrollTo(`phase-${phase.n}`, phase.n)}
                 className={cn(
                   "flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                  activePhase === phase.n
+                  lastClicked === phase.n
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )}
               >
-                <div className="flex items-center gap-3">
-                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: phase.color }} />
-                  <span className="truncate">{phase.title}</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className="shrink-0 text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: `${phase.color}25`, color: phase.color }}
+                  >
+                    {phase.n}
+                  </span>
+                  <span className="truncate">{PHASE_SHORT[i]}</span>
                 </div>
                 <span className="text-xs text-muted-foreground shrink-0">{count}</span>
               </button>
@@ -260,73 +290,93 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
         {/* ── Main ── */}
         <main className="flex-1 p-8 min-w-0">
-
           {/* Overview section */}
           <section id="overview" className="mb-10 scroll-mt-20">
             <h1 className="mb-6 text-2xl font-semibold text-foreground">Overview</h1>
 
-            <div className="mb-6 inline-block rounded-lg border border-border bg-card p-5 pr-8">
-              <PhaseChart phaseCounts={phaseCounts} />
+            {/* Chart + stats side by side */}
+            <div className="mb-8 flex flex-wrap gap-4 items-start">
+              <div className="rounded-lg border border-border bg-card p-5">
+                <PhaseChart phaseCounts={phaseCounts} />
+              </div>
+
+              {/* Quick-glance stats */}
+              <div className="grid grid-cols-2 gap-3 flex-1 min-w-48">
+                {[
+                  {
+                    label: "Active",
+                    value: String(projects.filter((p) => p.currentPhaseIndex < 5).length),
+                    sub: "in progress",
+                  },
+
+                  {
+                    label: "Est. retainer",
+                    value: (() => {
+                      const n = projects.filter((p) => p.currentPhaseIndex === 5).length;
+                      return n === 0 ? "€0" : `€${n * 100}–${n * 300}`;
+                    })(),
+                    sub: "per month",
+                  },
+                ].map((stat) => (
+                  <div key={stat.label} className="rounded-lg border border-border bg-card p-4">
+                    <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
+                    <p className="text-2xl font-semibold text-foreground tabular-nums">{stat.value}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{stat.sub}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Tools grid */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-              {tools.map((tool) => (
-                <a
-                  key={tool.id}
-                  href={tool.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 transition-all hover:border-foreground/20"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-sm font-semibold text-muted-foreground">
-                    {tool.icon}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-card-foreground">{tool.name}</p>
-                    <p className="text-xs text-muted-foreground">{tool.description}</p>
-                  </div>
-                </a>
-              ))}
-            </div>
           </section>
 
-          {/* Projects section */}
-          {filtered.length === 0 ? (
+          {/* Projects — one section per phase, always visible */}
+          {phaseGroups.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-lg font-medium text-foreground">
-                {search || activePhase !== null ? "No projects found" : "No projects yet"}
+                {search ? "No projects match" : "No projects yet"}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {search || activePhase !== null
-                  ? "Try adjusting your search or filter"
-                  : 'Click "New Project" to get started'}
+                {search ? "Try a different search term" : 'Click "New Project" to get started'}
               </p>
             </div>
           ) : (
-            <div id={activePhase !== null ? `phase-${activePhase}` : undefined} className="scroll-mt-20">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-foreground">
-                  {activePhase !== null ? PHASES[activePhase].title : "All Projects"}
-                </h2>
-                <span className="text-sm text-muted-foreground">
-                  {filtered.length} {filtered.length === 1 ? "project" : "projects"}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filtered.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    slug={project.slug}
-                    name={project.name}
-                    clientName={project.clientName}
-                    businessName={project.businessName}
-                    startDate={project.startDate}
-                    currentPhase={PHASES[project.currentPhaseIndex]}
-                    completedSteps={project.completedSteps}
-                  />
-                ))}
-              </div>
+            <div className="flex flex-col gap-10">
+              {phaseGroups.map(({ phase, projects: phaseProjects }) => (
+                <section key={phase.n} id={`phase-${phase.n}`} className="scroll-mt-20">
+                  <div className="mb-3 flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground mb-1.5">{phase.title}</h2>
+                      <div className="flex flex-wrap gap-1.5">
+                        {phase.tools.map((tool) => (
+                          <span
+                            key={tool}
+                            className="inline-block rounded-md border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                          >
+                            {tool}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-sm text-muted-foreground pt-0.5">
+                      {phaseProjects.length} {phaseProjects.length === 1 ? "project" : "projects"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {phaseProjects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        slug={project.slug}
+                        name={project.name}
+                        clientName={project.clientName}
+                        businessName={project.businessName}
+                        startDate={project.startDate}
+                        currentPhase={PHASES[project.currentPhaseIndex]}
+                        completedSteps={project.completedSteps}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
           )}
         </main>
