@@ -13,6 +13,7 @@ interface ProjectCardProps {
   currentPhase: Phase;
   completedSteps: number;
   siteUrl?: string | null;
+  isNew?: boolean;
 }
 
 function useScreenshot(url?: string | null) {
@@ -43,6 +44,7 @@ export function ProjectCard({
   currentPhase,
   completedSteps,
   siteUrl,
+  isNew,
 }: ProjectCardProps) {
   const pct = Math.round((completedSteps / TOTAL_STEPS) * 100);
   const subtitle = [clientName, businessName].filter(Boolean).join(" · ");
@@ -56,6 +58,7 @@ export function ProjectCard({
     <div
       className={cn(
         "group relative flex h-44 flex-col justify-between overflow-hidden rounded-xl bg-card p-4 transition-all border-2",
+        isNew && "animate-in fade-in slide-in-from-top-4 duration-500",
       )}
       style={{ borderColor: `${currentPhase.color}60` }}
     >

@@ -1,15 +1,17 @@
 import { desc, eq } from "drizzle-orm";
 import { Globe, LayoutDashboard, Plus, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Form, Link, redirect } from "react-router";
+import { NewProjectModal } from "~/components/NewProjectModal";
 import { ProjectCard } from "~/components/ProjectCard";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { Input } from "~/components/ui/input";
 import { db } from "~/db/index.server";
-import { phaseSteps, projects } from "~/db/schema";
+import { brandValues, phaseSteps, projects } from "~/db/schema";
 import { PHASES } from "~/lib/phases";
 import { destroySession, getSession, requireAdmin } from "~/lib/session.server";
 import { cn } from "~/lib/utils";
+import { nanoid } from "nanoid";
 import type { Route } from "./+types/home";
 
 export function meta(_: Route.MetaArgs) {
@@ -57,13 +59,31 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
+  await requireAdmin(request);
   const formData = await request.formData();
-  if (formData.get("intent") === "logout") {
+  const intent = formData.get("intent");
+
+  if (intent === "logout") {
     const session = await getSession(request.headers.get("Cookie"));
     return redirect("/admin-login", {
       headers: { "Set-Cookie": await destroySession(session) },
     });
   }
+
+  if (intent === "create") {
+    const name = String(formData.get("name") ?? "").trim();
+    const clientName = String(formData.get("clientName") ?? "").trim();
+    const businessName = String(formData.get("businessName") ?? "").trim();
+    if (!name) return { error: "Project name is required." };
+    const slug = nanoid(8).toLowerCase();
+    const [project] = await db
+      .insert(projects)
+      .values({ slug, name, clientName, businessName })
+      .returning();
+    await db.insert(brandValues).values({ projectId: project.id });
+    return { ok: true, slug };
+  }
+
   return null;
 }
 
@@ -157,6 +177,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const { projects } = loaderData;
   const [search, setSearch] = useState("");
   const [lastClicked, setLastClicked] = useState<number | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [newSlug, setNewSlug] = useState<string | null>(null);
+
+  const handleCreated = useCallback((slug: string) => {
+    setNewSlug(slug);
+    setTimeout(() => setNewSlug(null), 2000);
+  }, []);
 
   const phaseCounts = PHASES.map((phase) => ({
     phase,
@@ -190,6 +217,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   return (
+    <>
+    <NewProjectModal
+      open={showModal}
+      onClose={() => setShowModal(false)}
+      onCreated={handleCreated}
+    />
     <div className="flex min-h-screen flex-col">
       {/* ── Navbar ── */}
       <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-6">
@@ -224,13 +257,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <Globe className="h-3.5 w-3.5" />
             Client Portal
           </a>
-          <Link
-            to="/admin/new"
-            className="flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90"
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90 cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
             New Project
-          </Link>
+          </button>
           <ThemeToggle />
           <Form method="post">
             <input type="hidden" name="intent" value="logout" />
@@ -372,6 +405,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         startDate={project.startDate}
                         currentPhase={PHASES[project.currentPhaseIndex]}
                         completedSteps={project.completedSteps}
+                        isNew={project.slug === newSlug}
                       />
                     ))}
                   </div>
@@ -382,5 +416,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </main>
       </div>
     </div>
+    </>
   );
 }
