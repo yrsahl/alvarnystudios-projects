@@ -1,4 +1,4 @@
-import { Form, redirect } from "react-router";
+import { Form, Link, redirect } from "react-router";
 import type { Route } from "./+types/admin-login";
 import { getSession, commitSession } from "~/lib/session.server";
 import { Input } from "~/components/ui/input";
@@ -34,12 +34,12 @@ export default function AdminLogin({ actionData }: Route.ComponentProps) {
     <main className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         {/* Logo mark */}
-        <div className="flex items-center gap-2 mb-10">
+        <Link to="/" className="flex items-center gap-2 mb-10">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground">
             <span className="text-sm font-bold text-background">S</span>
           </div>
           <span className="text-sm font-semibold text-foreground">Studio</span>
-        </div>
+        </Link>
 
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-foreground mb-1">Welcome back</h1>

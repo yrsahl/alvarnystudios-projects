@@ -46,6 +46,7 @@ export function ProjectCard({
   siteUrl,
   isNew,
 }: ProjectCardProps) {
+  const [shouldAnimate] = useState(() => isNew); // frozen on mount — prevents re-renders from replaying the animation
   const pct = Math.round((completedSteps / TOTAL_STEPS) * 100);
   const subtitle = [clientName, businessName].filter(Boolean).join(" · ");
   const screenshotSrc = useScreenshot(siteUrl);
@@ -58,7 +59,7 @@ export function ProjectCard({
     <div
       className={cn(
         "group relative flex h-44 flex-col justify-between overflow-hidden rounded-xl bg-card p-4 transition-all border-2",
-        isNew && "animate-in fade-in slide-in-from-top-4 duration-500",
+        shouldAnimate && "animate-in fade-in slide-in-from-top-4 duration-500",
       )}
       style={{ borderColor: `${currentPhase.color}60` }}
     >

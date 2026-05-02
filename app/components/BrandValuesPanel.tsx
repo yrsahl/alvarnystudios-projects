@@ -83,9 +83,16 @@ export function BrandValuesPanel({ brand }: Props) {
   const [values, setValues] = useState<BrandData>(brand);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  // Clean up inline overrides when panel closes, restoring the Studio theme
   useEffect(() => {
-    applyBrandPreview(values);
-  }, [values]);
+    return () => {
+      const root = document.documentElement;
+      ["--background", "--foreground", "--card", "--card-foreground", "--secondary",
+       "--muted", "--muted-foreground", "--border", "--input", "--primary"].forEach((p) =>
+        root.style.removeProperty(p),
+      );
+    };
+  }, []);
 
   function save(next: BrandData) {
     clearTimeout(debounceRef.current);
@@ -97,12 +104,14 @@ export function BrandValuesPanel({ brand }: Props) {
   function handleColorChange(key: keyof BrandData, value: string) {
     const next = { ...values, [key]: value };
     setValues(next);
+    applyBrandPreview(next);
     save(next);
   }
 
   function handleFontChange(key: "headingFont" | "bodyFont", value: string) {
     const next = { ...values, [key]: value };
     setValues(next);
+    applyBrandPreview(next);
     save(next);
   }
 

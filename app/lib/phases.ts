@@ -117,3 +117,24 @@ export const PHASES: Phase[] = [
 ];
 
 export const TOTAL_STEPS = PHASES.reduce((sum, p) => sum + p.steps.length, 0);
+
+export const TOOL_URLS: Record<string, string> = {
+  "Notion": "https://notion.so",
+  "Loom": "https://loom.com",
+  "Google Meet": "https://meet.google.com",
+  "v0 by Vercel": "https://v0.dev",
+  "Looka": "https://looka.com",
+  "Midjourney": "https://midjourney.com",
+  "Ideogram": "https://ideogram.ai",
+  "Next.js": "https://nextjs.org",
+  "Sanity": "https://sanity.io",
+  "Vercel": "https://vercel.com",
+  "Claude Code": "https://claude.ai/code",
+  "Resend": "https://resend.com",
+  "Google Search Console": "https://search.google.com/search-console",
+  "Google Analytics 4": "https://analytics.google.com",
+  "Vercel Analytics": "https://vercel.com/analytics",
+  "Better Uptime": "https://betteruptime.com",
+  "Google Ads": "https://ads.google.com",
+  "Meta Ads": "https://www.facebook.com/adsmanager",
+};

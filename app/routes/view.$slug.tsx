@@ -126,12 +126,12 @@ export default function ClientProjectView({ loaderData }: Route.ComponentProps) 
     <div className="flex min-h-screen flex-col">
       {/* Navbar */}
       <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-6">
-        <div className="flex items-center gap-2">
+        <a href="/" className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
             <span className="text-sm font-bold text-background">S</span>
           </div>
           <span className="text-sm font-semibold text-foreground">Studio</span>
-        </div>
+        </a>
 
         <p className="text-sm font-medium text-foreground">{displayName}</p>
 

@@ -61,8 +61,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
       primaryColor: "#5B8CFF",
       secondaryColor: "#A78BFA",
       accentColor: "#34D399",
-      bgColor: "#0e0e0f",
-      textColor: "#F0EFE8",
+      bgColor: "#ffffff",
+      textColor: "#111111",
       headingFont: "",
       bodyFont: "",
     },
@@ -177,12 +177,12 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
     <div className="flex min-h-screen flex-col">
       {/* Navbar */}
       <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-6">
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
             <span className="text-sm font-bold text-background">S</span>
           </div>
           <span className="text-sm font-semibold text-foreground">Studio</span>
-        </div>
+        </Link>
 
         <p className="text-sm font-medium text-foreground">{project.name}</p>
 

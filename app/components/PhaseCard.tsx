@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFetcher, useParams } from "react-router";
 import type { Phase } from "~/lib/phases";
+import { TOOL_URLS } from "~/lib/phases";
 import { BrandValuesPanel, type BrandData } from "./BrandValuesPanel";
 import { ProjectBriefPanel, type BriefData } from "./ProjectBriefPanel";
 import { ProgressBar } from "./ProgressBar";
@@ -189,12 +190,15 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
                   </h4>
                   <div className="flex flex-wrap gap-1.5 mb-5">
                     {phase.tools.map((tool) => (
-                      <span
+                      <a
                         key={tool}
-                        className="text-xs font-medium px-2.5 py-1 rounded-md bg-muted border border-border text-muted-foreground"
+                        href={TOOL_URLS[tool]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium px-2.5 py-1 rounded-md bg-muted border border-border text-muted-foreground transition-colors hover:text-foreground"
                       >
                         {tool}
-                      </span>
+                      </a>
                     ))}
                   </div>
                   <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
