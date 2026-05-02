@@ -5,14 +5,9 @@ interface Props {
   className?: string;
 }
 
-export function ProgressBar({
-  value,
-  color = "#5B8CFF",
-  gradient = false,
-  className = "",
-}: Props) {
+export function ProgressBar({ value, color = "#5B8CFF", gradient = false, className = "" }: Props) {
   return (
-    <div className={`h-px bg-white/7 rounded-full overflow-hidden ${className}`}>
+    <div className={`h-px rounded-full overflow-hidden bg-border ${className}`}>
       <div
         className="h-full rounded-full transition-all duration-300 ease-out"
         style={{

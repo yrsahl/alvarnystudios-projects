@@ -55,14 +55,12 @@ export function ProjectTimeline({
         brief={isAdmin ? undefined : brief}
       />
 
-      {/* Timeline */}
       <div className="relative">
         {/* Vertical spine */}
         <div
-          className="absolute left-5 top-0 bottom-0 w-px opacity-30 pointer-events-none"
+          className="absolute left-5 top-0 bottom-0 w-px opacity-20 pointer-events-none"
           style={{
-            background:
-              "linear-gradient(to bottom, #5B8CFF, #A78BFA, #34D399, #60C8B0, #FBBF24, #FB923C)",
+            background: "linear-gradient(to bottom, #5B8CFF, #A78BFA, #34D399, #60C8B0, #FBBF24, #FB923C)",
           }}
         />
 

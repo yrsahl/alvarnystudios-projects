@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { Link, redirect } from "react-router";
+import { ThemeToggle } from "~/components/ThemeToggle";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
 import { db } from "~/db/index.server";
 import { brandValues, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
@@ -7,18 +8,16 @@ import { PHASES } from "~/lib/phases";
 import { getSession } from "~/lib/session.server";
 import type { Route } from "./+types/project";
 
-export function meta({ data: loaderData }: Route.MetaArgs) {
+export function meta({ loaderData }: Route.MetaArgs) {
   const name = loaderData?.project?.name ?? "Project";
-  return [{ title: `${name} — Project Overview` }];
+  return [{ title: `${name} — Studio` }];
 }
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const session = await getSession(request.headers.get("Cookie"));
   const isAdmin = session.get("isAdmin") ?? false;
 
-  if (!isAdmin) {
-    throw redirect(`/view/${params.slug}`);
-  }
+  if (!isAdmin) throw redirect(`/view/${params.slug}`);
 
   const project = await db.query.projects.findFirst({
     where: eq(projects.slug, params.slug),
@@ -175,33 +174,30 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
   const { project, brand, brief, isAdmin, stepsByPhase, adminNotesByPhase, clientNotesByPhase } = loaderData;
 
   return (
-    <main className="min-h-screen bg-bg py-12 px-6">
-      <div className="max-w-215 mx-auto">
-        {/* Back link */}
-        <div className="mb-8">
+    <div className="flex min-h-screen flex-col">
+      {/* Navbar */}
+      <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-6">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
+            <span className="text-sm font-bold text-background">S</span>
+          </div>
+          <span className="text-sm font-semibold text-foreground">Studio</span>
+        </div>
+
+        <p className="text-sm font-medium text-foreground">{project.name}</p>
+
+        <div className="flex items-center gap-2">
           <Link
             to="/"
-            className="font-display text-[11px] font-semibold tracking-widest uppercase text-faint hover:text-muted transition-colors"
+            className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             ← Dashboard
           </Link>
+          <ThemeToggle />
         </div>
+      </header>
 
-        {/* Header */}
-        <div className="mb-12">
-          <p className="font-display text-[10px] font-semibold tracking-[0.18em] uppercase text-muted mb-3">
-            Freelance Workflow
-          </p>
-          <h1 className="font-display text-4xl font-extrabold text-text leading-tight mb-3">
-            Local Business <span className="text-p1">Web</span>
-            <br />
-            Client Playbook
-          </h1>
-          <p className="text-muted text-[15px] max-w-md">
-            From first discovery call to recurring retainer income — track progress live with your client.
-          </p>
-        </div>
-
+      <main className="flex-1 px-6 py-8 max-w-4xl mx-auto w-full">
         <ProjectTimeline
           project={project}
           brand={brand}
@@ -211,28 +207,7 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
           initialAdminNotesByPhase={adminNotesByPhase}
           initialClientNotesByPhase={clientNotesByPhase}
         />
-
-        {/* Footer stats — admin only */}
-        {isAdmin && (
-          <footer className="mt-12 bg-surface border border-white/7 rounded-2xl px-6 py-5 flex justify-between items-center flex-wrap gap-4">
-            {[
-              { val: "~10 days", lbl: "Discovery to launch" },
-              { val: "Next.js", lbl: "Core framework" },
-              { val: "Sanity", lbl: "CMS for clients" },
-              { val: "€800–3k", lbl: "Per project" },
-              { val: "€100–300", lbl: "Monthly retainer" },
-            ].map((stat, i, arr) => (
-              <div key={stat.val} className="flex items-center gap-4">
-                <div className="text-center">
-                  <div className="font-display text-xl font-extrabold text-text">{stat.val}</div>
-                  <div className="text-[11px] text-muted mt-0.5">{stat.lbl}</div>
-                </div>
-                {i < arr.length - 1 && <div className="w-px h-9 bg-white/7" />}
-              </div>
-            ))}
-          </footer>
-        )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

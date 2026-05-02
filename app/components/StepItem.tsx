@@ -1,4 +1,5 @@
 import { useFetcher } from "react-router";
+import { cn } from "~/lib/utils";
 
 interface Props {
   text: string;
@@ -14,7 +15,6 @@ interface Props {
 export function StepItem({ text, index, phaseNumber, checked, color, clientOwned, isAdmin, onToggle }: Props) {
   const fetcher = useFetcher({});
   const canToggle = isAdmin || clientOwned;
-
   const pendingChecked = fetcher.formData != null ? fetcher.formData.get("completed") === "true" : checked;
 
   function handleClick() {
@@ -22,23 +22,17 @@ export function StepItem({ text, index, phaseNumber, checked, color, clientOwned
     const next = !pendingChecked;
     onToggle(index, next);
     fetcher.submit(
-      {
-        intent: "toggle-step",
-        phaseNumber: String(phaseNumber),
-        stepIndex: String(index),
-        completed: String(next),
-      },
+      { intent: "toggle-step", phaseNumber: String(phaseNumber), stepIndex: String(index), completed: String(next) },
       { method: "post" },
     );
   }
 
   return (
-    <li className="py-1.5 border-b border-white/7 last:border-0">
+    <li className="py-2 border-b border-border last:border-0">
       <button
         onClick={handleClick}
         disabled={!canToggle}
-        className="flex items-start gap-2.5 w-full text-left disabled:cursor-default"
-        style={{ cursor: canToggle ? "pointer" : "default" }}
+        className="flex items-start gap-2.5 w-full text-left disabled:cursor-default cursor-pointer"
       >
         {/* Checkbox */}
         <span
@@ -46,37 +40,39 @@ export function StepItem({ text, index, phaseNumber, checked, color, clientOwned
           style={
             pendingChecked
               ? { backgroundColor: color, borderColor: color }
-              : { backgroundColor: "transparent", borderColor: "var(--color-faint)" }
+              : { backgroundColor: "transparent", borderColor: "var(--border)" }
           }
         >
           {pendingChecked && (
             <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-              <path d="M1 3.5L3.5 6L8 1" stroke="#000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           )}
         </span>
 
         <span
-          className="flex-1 text-[13px] leading-relaxed transition-colors duration-150"
-          style={{
-            color: pendingChecked ? "var(--color-faint)" : canToggle ? "#b0afa8" : "var(--color-faint)",
-            textDecoration: pendingChecked ? "line-through" : "none",
-          }}
+          className={cn(
+            "flex-1 text-sm leading-relaxed transition-colors duration-150",
+            pendingChecked
+              ? "line-through text-muted-foreground/50"
+              : canToggle
+                ? "text-foreground"
+                : "text-muted-foreground",
+          )}
         >
           {text}
         </span>
 
-        {/* Client-action badge */}
         {clientOwned && !isAdmin && (
           <span
-            className="shrink-0 font-display text-[9px] font-semibold tracking-widest uppercase px-1.5 py-0.5 rounded border mt-0.5"
+            className="shrink-0 text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded border mt-0.5"
             style={{ color, borderColor: `${color}40`, backgroundColor: `${color}15` }}
           >
             Your action
           </span>
         )}
         {clientOwned && isAdmin && (
-          <span className="shrink-0 font-display text-[9px] font-semibold tracking-widest uppercase px-1.5 py-0.5 rounded border mt-0.5 text-muted border-white/10 bg-white/5">
+          <span className="shrink-0 text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded border mt-0.5 text-muted-foreground border-border bg-muted">
             Client
           </span>
         )}

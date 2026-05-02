@@ -35,12 +35,13 @@ function Toggle({
             key={label}
             type="button"
             onClick={() => onChange(active ? null : val)}
-            className="font-display text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-all"
+            className="text-xs font-medium px-3 py-1.5 rounded-md border transition-all cursor-pointer"
             style={
               active
-                ? { backgroundColor: `${color}20`, borderColor: `${color}60`, color }
-                : { backgroundColor: "transparent", borderColor: "var(--color-faint)", color: "var(--color-muted)" }
+                ? { backgroundColor: `${color}18`, borderColor: `${color}50`, color }
+                : undefined
             }
+            {...(!active && { className: "text-xs font-medium px-3 py-1.5 rounded-md border transition-all cursor-pointer text-muted-foreground border-border hover:border-ring" })}
           >
             {label}
           </button>
@@ -49,6 +50,10 @@ function Toggle({
     </div>
   );
 }
+
+const inputClass =
+  "w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors";
+const labelClass = "block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5";
 
 export function ProjectBriefPanel({ brief, isAdmin }: Props) {
   const fetcher = useFetcher({});
@@ -81,44 +86,30 @@ export function ProjectBriefPanel({ brief, isAdmin }: Props) {
   }
 
   if (!isAdmin) {
-    const rows: { label: string; value: string | null }[] = [
-      {
-        label: "Needs brand?",
-        value: values.needsBrand === null ? null : values.needsBrand ? "Yes" : "No",
-      },
-      {
-        label: "Pages",
-        value: values.pageCount !== null ? String(values.pageCount) : null,
-      },
-      { label: "Features", value: values.features || null },
-      { label: "Timeline", value: values.timeline || null },
-      { label: "Budget", value: values.budget || null },
-      {
-        label: "Retainer",
-        value:
-          values.hasRetainer === null
-            ? null
-            : values.hasRetainer
-              ? values.retainerAmount || "Agreed"
-              : "No",
-      },
-    ].filter((r) => r.value !== null);
+    const rows = [
+      values.needsBrand !== null ? { label: "Needs brand?", value: values.needsBrand ? "Yes" : "No" } : null,
+      values.pageCount !== null ? { label: "Pages", value: String(values.pageCount) } : null,
+      values.features ? { label: "Features", value: values.features } : null,
+      values.timeline ? { label: "Timeline", value: values.timeline } : null,
+      values.budget ? { label: "Budget", value: values.budget } : null,
+      values.hasRetainer !== null
+        ? { label: "Retainer", value: values.hasRetainer ? values.retainerAmount || "Agreed" : "No" }
+        : null,
+    ].filter((r): r is { label: string; value: string } => r !== null);
 
     return (
-      <div className="bg-surface border border-white/7 rounded-2xl p-5 mb-10">
-        <span className="block font-display text-[10px] font-semibold tracking-[0.18em] uppercase text-muted mb-4">
+      <div className="bg-card border border-border rounded-xl p-5 mb-8">
+        <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
           Project Brief
         </span>
         {rows.length === 0 ? (
-          <p className="text-faint text-[13px]">Brief not yet filled in.</p>
+          <p className="text-sm text-muted-foreground">Brief not yet filled in.</p>
         ) : (
           <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4">
             {rows.map(({ label, value }) => (
               <div key={label}>
-                <dt className="font-display text-[10px] font-semibold tracking-widest uppercase text-muted mb-1">
-                  {label}
-                </dt>
-                <dd className="text-[13px] text-text leading-relaxed">{value}</dd>
+                <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">{label}</dt>
+                <dd className="text-sm text-foreground leading-relaxed">{value}</dd>
               </div>
             ))}
           </dl>
@@ -127,14 +118,9 @@ export function ProjectBriefPanel({ brief, isAdmin }: Props) {
     );
   }
 
-  const inputClass =
-    "w-full bg-surface border border-white/7 rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-p1/50 placeholder:text-faint transition-colors";
-  const labelClass =
-    "block font-display text-[10px] font-semibold tracking-widest uppercase text-muted mb-1.5";
-
   return (
-    <div className="pt-5 mt-5 border-t border-white/7">
-      <h4 className="font-display text-[10px] font-semibold tracking-widest uppercase text-muted mb-4">
+    <div className="pt-5 mt-5 border-t border-border">
+      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
         Project Brief
       </h4>
 
@@ -185,7 +171,7 @@ export function ProjectBriefPanel({ brief, isAdmin }: Props) {
             onChange={(e) => update({ features: e.target.value })}
             placeholder="e.g. Contact form, Google Maps, Blog, Booking widget"
             rows={2}
-            className="w-full bg-surface border border-white/7 rounded-lg px-3 py-2.5 text-sm text-text outline-none focus:border-p1/50 placeholder:text-faint resize-y transition-colors"
+            className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y transition-colors"
           />
         </div>
 

@@ -1,13 +1,14 @@
 import { eq } from "drizzle-orm";
+import { ThemeToggle } from "~/components/ThemeToggle";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
 import { db } from "~/db/index.server";
 import { brandValues, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
 import { PHASES } from "~/lib/phases";
 import type { Route } from "./+types/view.$slug";
 
-export function meta({ data: loaderData }: Route.MetaArgs) {
+export function meta({ loaderData }: Route.MetaArgs) {
   const name = (loaderData?.project?.businessName || loaderData?.project?.name) ?? "Project";
-  return [{ title: `${name} — Project Overview` }];
+  return [{ title: `${name} — Studio` }];
 }
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -79,7 +80,6 @@ export async function action({ request, params }: Route.ActionArgs) {
   const formData = await request.formData();
   const intent = String(formData.get("intent"));
 
-  // Clients may toggle their own steps
   if (intent === "toggle-step") {
     const phaseNumber = Number(formData.get("phaseNumber"));
     const stepIndex = Number(formData.get("stepIndex"));
@@ -99,7 +99,6 @@ export async function action({ request, params }: Route.ActionArgs) {
     return { ok: true };
   }
 
-  // Clients may write shared notes
   if (intent === "update-notes") {
     const noteType = String(formData.get("noteType"));
     if (noteType !== "client") throw new Response("Forbidden", { status: 403 });
@@ -121,25 +120,25 @@ export async function action({ request, params }: Route.ActionArgs) {
 
 export default function ClientProjectView({ loaderData }: Route.ComponentProps) {
   const { project, brand, brief, stepsByPhase, adminNotesByPhase, clientNotesByPhase } = loaderData;
+  const displayName = project.businessName || project.name;
 
   return (
-    <main className="min-h-screen bg-bg py-12 px-6">
-      <div className="max-w-215 mx-auto">
-        <div className="mb-12">
-          <p className="font-display text-[10px] font-semibold tracking-[0.18em] uppercase text-muted mb-3">
-            {project.businessName || project.name}
-          </p>
-          <h1 className="font-display text-4xl font-extrabold text-text leading-tight mb-3">
-            {project.clientName ? `${project.clientName}'s` : "Your"}{" "}
-            <span className="text-p1">Project</span>
-            <br />
-            Overview
-          </h1>
-          <p className="text-muted text-[15px] max-w-md">
-            Track the progress of your project and complete your action items below.
-          </p>
+    <div className="flex min-h-screen flex-col">
+      {/* Navbar */}
+      <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-6">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
+            <span className="text-sm font-bold text-background">S</span>
+          </div>
+          <span className="text-sm font-semibold text-foreground">Studio</span>
         </div>
 
+        <p className="text-sm font-medium text-foreground">{displayName}</p>
+
+        <ThemeToggle />
+      </header>
+
+      <main className="flex-1 px-6 py-8 max-w-4xl mx-auto w-full">
         <ProjectTimeline
           project={project}
           brand={brand}
@@ -149,7 +148,7 @@ export default function ClientProjectView({ loaderData }: Route.ComponentProps) 
           initialAdminNotesByPhase={adminNotesByPhase}
           initialClientNotesByPhase={clientNotesByPhase}
         />
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

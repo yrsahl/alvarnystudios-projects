@@ -19,8 +19,6 @@ const COLOR_FIELDS: { key: keyof BrandData; label: string }[] = [
   { key: "textColor", label: "Text" },
 ];
 
-// --- Preview helpers (run in browser only) ---
-
 function hexToRgb(hex: string): [number, number, number] | null {
   const m = /^#([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null;
@@ -31,9 +29,7 @@ function blendHex(hex: string, toward: number, amount: number): string {
   if (!rgb) return hex;
   return (
     "#" +
-    rgb
-      .map((c) => Math.round(c + (toward - c) * amount).toString(16).padStart(2, "0"))
-      .join("")
+    rgb.map((c) => Math.round(c + (toward - c) * amount).toString(16).padStart(2, "0")).join("")
   );
 }
 
@@ -54,36 +50,29 @@ function applyBrandPreview(brand: BrandData) {
   const isLight = luminance > 0.5;
   const surfaceTarget = isLight ? 0 : 255;
 
-  root.style.setProperty("--color-bg", brand.bgColor);
-  root.style.setProperty("--color-surface", blendHex(brand.bgColor, surfaceTarget, 0.05));
-  root.style.setProperty("--color-surface2", blendHex(brand.bgColor, surfaceTarget, 0.12));
-  root.style.setProperty("--color-text", brand.textColor);
-  root.style.setProperty("--color-muted", isLight ? "#555555" : "#8c8b84");
-  root.style.setProperty("--color-faint", isLight ? "#bbbbbb" : "#3a3a3e");
-  root.style.setProperty("--color-p1", brand.primaryColor);
-  root.style.setProperty("--color-p2", brand.secondaryColor);
-  root.style.setProperty("--color-p3", brand.accentColor);
+  // Studio tokens
+  root.style.setProperty("--background", brand.bgColor);
+  root.style.setProperty("--foreground", brand.textColor);
+  root.style.setProperty("--card", blendHex(brand.bgColor, surfaceTarget, 0.06));
+  root.style.setProperty("--card-foreground", brand.textColor);
+  root.style.setProperty("--secondary", blendHex(brand.bgColor, surfaceTarget, 0.10));
+  root.style.setProperty("--muted", blendHex(brand.bgColor, surfaceTarget, 0.10));
+  root.style.setProperty("--muted-foreground", isLight ? "#555555" : "#8c8b84");
+  root.style.setProperty("--border", blendHex(brand.bgColor, surfaceTarget, 0.14));
+  root.style.setProperty("--input", blendHex(brand.bgColor, surfaceTarget, 0.10));
+  root.style.setProperty("--primary", brand.primaryColor);
 
   const headingFamily = brand.headingFont.split(",")[0].trim();
   const bodyFamily = brand.bodyFont.split(",")[0].trim();
-
   if (headingFamily) {
-    root.style.setProperty(
-      "--font-display",
-      `"${headingFamily}", ui-sans-serif, system-ui, sans-serif`,
-    );
+    root.style.setProperty("--font-sans", `"${headingFamily}", ui-sans-serif, system-ui, sans-serif`);
     loadGoogleFont(headingFamily);
   }
   if (bodyFamily) {
-    root.style.setProperty(
-      "--font-sans",
-      `"${bodyFamily}", ui-sans-serif, system-ui, sans-serif`,
-    );
+    root.style.setProperty("--font-body", `"${bodyFamily}", ui-sans-serif, system-ui, sans-serif`);
     loadGoogleFont(bodyFamily);
   }
 }
-
-// ---
 
 interface Props {
   brand: BrandData;
@@ -94,7 +83,6 @@ export function BrandValuesPanel({ brand }: Props) {
   const [values, setValues] = useState<BrandData>(brand);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Apply preview on mount and whenever values change
   useEffect(() => {
     applyBrandPreview(values);
   }, [values]);
@@ -119,20 +107,19 @@ export function BrandValuesPanel({ brand }: Props) {
   }
 
   return (
-    <div className="pt-5 mt-5 border-t border-white/7">
-      <h4 className="font-display text-[10px] font-semibold tracking-widest uppercase text-muted mb-3">
+    <div className="pt-5 mt-5 border-t border-border">
+      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
         Brand Values
       </h4>
 
-      {/* Color swatches */}
-      <div className="grid grid-cols-5 gap-3 mb-4">
+      <div className="grid grid-cols-5 gap-3 mb-5">
         {COLOR_FIELDS.map(({ key, label }) => (
           <div key={key} className="flex flex-col gap-1.5">
-            <span className="font-display text-[9px] font-semibold tracking-widest uppercase text-muted">
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
               {label}
             </span>
             <div
-              className="h-8 rounded-md border border-white/10 relative overflow-hidden cursor-pointer"
+              className="h-8 rounded-md border border-border relative overflow-hidden cursor-pointer"
               style={{ backgroundColor: values[key] as string }}
             >
               <input
@@ -150,29 +137,24 @@ export function BrandValuesPanel({ brand }: Props) {
                 const v = e.target.value;
                 if (/^#[0-9a-fA-F]{0,6}$/.test(v)) handleColorChange(key, v);
               }}
-              className="w-full bg-surface border border-white/7 rounded px-1.5 py-1 font-display text-[10px] font-semibold tracking-widest text-text uppercase outline-none focus:border-p2/50 transition-colors"
+              className="w-full bg-background border border-border rounded px-1.5 py-1 text-[10px] font-mono tracking-wider text-foreground uppercase outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
             />
           </div>
         ))}
       </div>
 
-      {/* Font inputs */}
       <div className="grid grid-cols-2 gap-3">
         {(["headingFont", "bodyFont"] as const).map((key) => (
           <div key={key}>
-            <label className="block font-display text-[10px] font-semibold tracking-widest uppercase text-muted mb-1.5">
+            <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
               {key === "headingFont" ? "Heading Font" : "Body Font"}
             </label>
             <input
               type="text"
               value={values[key]}
-              placeholder={
-                key === "headingFont"
-                  ? "e.g. Syne, Playfair Display"
-                  : "e.g. Instrument Sans, Inter"
-              }
+              placeholder={key === "headingFont" ? "e.g. Syne, Playfair Display" : "e.g. Inter, Instrument Sans"}
               onChange={(e) => handleFontChange(key, e.target.value)}
-              className="w-full bg-surface border border-white/7 rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-p2/50 placeholder:text-faint transition-colors"
+              className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
             />
           </div>
         ))}
