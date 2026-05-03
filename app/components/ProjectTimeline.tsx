@@ -4,6 +4,7 @@ import { PhaseCard } from "./PhaseCard";
 import { ClientInfoCard } from "./ClientInfoCard";
 import type { BriefData } from "./ProjectBriefPanel";
 import type { BrandData } from "./BrandValuesPanel";
+import type { Artifact } from "./PhaseArtifacts";
 
 interface Props {
   project: {
@@ -18,6 +19,7 @@ interface Props {
   initialStepsByPhase: Record<number, boolean[]>;
   initialAdminNotesByPhase: Record<number, string>;
   initialClientNotesByPhase: Record<number, string>;
+  artifactsByPhase: Record<number, Artifact[]>;
 }
 
 export function ProjectTimeline({
@@ -28,6 +30,7 @@ export function ProjectTimeline({
   initialStepsByPhase,
   initialAdminNotesByPhase,
   initialClientNotesByPhase,
+  artifactsByPhase,
 }: Props) {
   const [stepsByPhase, setStepsByPhase] = useState(initialStepsByPhase);
 
@@ -37,6 +40,15 @@ export function ProjectTimeline({
     0,
   );
   const totalSteps = visiblePhases.reduce((sum, phase) => sum + phase.steps.length, 0);
+
+  // For client view: auto-open the first phase that has incomplete client tasks
+  const clientActivePhaseN = isAdmin
+    ? null
+    : visiblePhases.find((phase) =>
+        phase.steps.some(
+          (step, i) => step.clientOwned && !(stepsByPhase[phase.n]?.[i] ?? false),
+        ),
+      )?.n ?? null;
 
   function handleStepToggle(phaseNumber: number, stepIndex: number, checked: boolean) {
     setStepsByPhase((prev) => ({
@@ -72,6 +84,8 @@ export function ProjectTimeline({
             initialAdminNotes={initialAdminNotesByPhase[phase.n] ?? ""}
             initialClientNotes={initialClientNotesByPhase[phase.n] ?? ""}
             isAdmin={isAdmin}
+            initialOpen={isAdmin ? phase.n === 0 : phase.n === clientActivePhaseN}
+            artifacts={artifactsByPhase[phase.n] ?? []}
             brand={phase.n === 1 ? brand : undefined}
             brief={phase.n === 0 ? brief : undefined}
             onStepToggle={handleStepToggle}

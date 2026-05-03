@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
 import { db } from "~/db/index.server";
-import { brandValues, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
+import { brandValues, phaseArtifacts, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
 import { PHASES } from "~/lib/phases";
 import type { Route } from "./+types/view.$slug";
 
@@ -17,11 +17,12 @@ export async function loader({ params }: Route.LoaderArgs) {
   });
   if (!project) throw new Response("Project not found", { status: 404 });
 
-  const [brand, briefRecord, stepRecords, noteRecords] = await Promise.all([
+  const [brand, briefRecord, stepRecords, noteRecords, artifactRecords] = await Promise.all([
     db.query.brandValues.findFirst({ where: eq(brandValues.projectId, project.id) }),
     db.query.projectBrief.findFirst({ where: eq(projectBrief.projectId, project.id) }),
     db.select().from(phaseSteps).where(eq(phaseSteps.projectId, project.id)),
     db.select().from(phaseNotes).where(eq(phaseNotes.projectId, project.id)),
+    db.select().from(phaseArtifacts).where(eq(phaseArtifacts.projectId, project.id)),
   ]);
 
   const stepsByPhase: Record<number, boolean[]> = {};
@@ -36,6 +37,20 @@ export async function loader({ params }: Route.LoaderArgs) {
   for (const phase of PHASES) {
     const rec = noteRecords.find((r) => r.phaseNumber === phase.n);
     clientNotesByPhase[phase.n] = rec?.clientNotes ?? "";
+  }
+
+  const artifactsByPhase: Record<number, { id: string; from: "admin" | "client"; label: string; url: string; createdAt: string }[]> = {};
+  for (const phase of PHASES) {
+    artifactsByPhase[phase.n] = artifactRecords
+      .filter((a) => a.phaseNumber === phase.n)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      .map((a) => ({
+        id: a.id,
+        from: a.from as "admin" | "client",
+        label: a.label,
+        url: a.url,
+        createdAt: a.createdAt.toISOString(),
+      }));
   }
 
   return {
@@ -68,6 +83,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     stepsByPhase,
     adminNotesByPhase: {} as Record<number, string>,
     clientNotesByPhase,
+    artifactsByPhase,
   };
 }
 
@@ -115,11 +131,38 @@ export async function action({ request, params }: Route.ActionArgs) {
     return { ok: true };
   }
 
+  if (intent === "add-artifact") {
+    const from = String(formData.get("from"));
+    if (from !== "client") throw new Response("Forbidden", { status: 403 });
+    const label = String(formData.get("label") || "").trim();
+    if (!label) throw new Response("Label required", { status: 400 });
+    await db.insert(phaseArtifacts).values({
+      projectId: project.id,
+      phaseNumber: Number(formData.get("phaseNumber")),
+      from: "client",
+      label,
+      url: String(formData.get("url") || "").trim(),
+    });
+    return { ok: true };
+  }
+
+  if (intent === "delete-artifact") {
+    const artifactId = String(formData.get("artifactId"));
+    const artifact = await db.query.phaseArtifacts.findFirst({
+      where: eq(phaseArtifacts.id, artifactId),
+    });
+    if (!artifact || artifact.projectId !== project.id || artifact.from !== "client") {
+      throw new Response("Forbidden", { status: 403 });
+    }
+    await db.delete(phaseArtifacts).where(eq(phaseArtifacts.id, artifactId));
+    return { ok: true };
+  }
+
   throw new Response("Forbidden", { status: 403 });
 }
 
 export default function ClientProjectView({ loaderData }: Route.ComponentProps) {
-  const { project, brand, brief, stepsByPhase, adminNotesByPhase, clientNotesByPhase } = loaderData;
+  const { project, brand, brief, stepsByPhase, adminNotesByPhase, clientNotesByPhase, artifactsByPhase } = loaderData;
   const displayName = project.businessName || project.name;
 
   return (
@@ -147,6 +190,7 @@ export default function ClientProjectView({ loaderData }: Route.ComponentProps) 
           initialStepsByPhase={stepsByPhase}
           initialAdminNotesByPhase={adminNotesByPhase}
           initialClientNotesByPhase={clientNotesByPhase}
+          artifactsByPhase={artifactsByPhase}
         />
       </main>
     </div>

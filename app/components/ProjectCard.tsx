@@ -78,23 +78,23 @@ export function ProjectCard({
         </>
       )}
 
-      {/* Stretched link to admin project view */}
+      {/* Stretched link — sits behind all content */}
       <Link
         to={`/project/${slug}`}
-        className="absolute inset-0 rounded-xl"
+        className="absolute inset-0 z-0 rounded-xl"
         aria-label={`Open ${name}`}
       />
 
-      {/* Name + phase badge */}
-      <div className="relative flex items-start justify-between gap-2">
-        <div>
-          <h3 className="font-medium text-card-foreground leading-snug">{name}</h3>
+      {/* Name + phase badge — pointer-events-none so clicks fall through to the link */}
+      <div className="relative z-10 flex items-start justify-between gap-2 pointer-events-none min-w-0">
+        <div className="min-w-0">
+          <h3 className="font-medium text-card-foreground leading-snug truncate">{name}</h3>
           {subtitle && (
-            <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-40">{subtitle}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>
           )}
         </div>
         <span
-          className="shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap"
+          className="shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap max-w-36 truncate"
           style={{
             color: currentPhase.color,
             borderColor: `${currentPhase.color}50`,
@@ -106,7 +106,7 @@ export function ProjectCard({
       </div>
 
       {/* Progress + bottom actions */}
-      <div className="relative z-10">
+      <div className="relative z-10 pointer-events-none">
         {/* Progress bar */}
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
@@ -123,14 +123,14 @@ export function ProjectCard({
           </div>
         </div>
 
-        {/* Actions row — visible on hover */}
+        {/* Actions row — visible on hover; re-enable pointer events only on the button */}
         <div className="flex items-center justify-between opacity-0 transition-opacity group-hover:opacity-100">
           <code className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded font-mono tracking-wider">
             {slug}
           </code>
           <button
-            onClick={(e) => { e.preventDefault(); copyClientLink(); }}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted cursor-pointer"
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); copyClientLink(); }}
+            className="pointer-events-auto text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted cursor-pointer"
           >
             Copy client link
           </button>

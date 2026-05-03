@@ -57,46 +57,61 @@ export function ClientInfoCard({ project, completedSteps, totalSteps, isAdmin, b
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-        {[
-          {
-            label: "Client Name",
-            value: clientName,
-            placeholder: "Jane Smith",
-            type: "text",
-            onChange: (v: string) => { setClientName(v); save({ clientName: v, businessName, startDate }); },
-          },
-          {
-            label: "Business Name",
-            value: businessName,
-            placeholder: "Smith Bakery",
-            type: "text",
-            onChange: (v: string) => { setBusinessName(v); save({ clientName, businessName: v, startDate }); },
-          },
-          {
-            label: "Project Start",
-            value: startDate,
-            placeholder: "",
-            type: "date",
-            onChange: (v: string) => { setStartDate(v); save({ clientName, businessName, startDate: v }); },
-          },
-        ].map((field) => (
-          <div key={field.label}>
-            <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-              {field.label}
-            </label>
-            <Input
-              type={field.type}
-              value={field.value}
-              placeholder={field.placeholder}
-              onChange={(e) => isAdmin && field.onChange(e.target.value)}
-              readOnly={!isAdmin}
-              className="h-9"
-              style={{ cursor: isAdmin ? undefined : "default", opacity: isAdmin ? 1 : 0.7 }}
-            />
-          </div>
-        ))}
-      </div>
+      {isAdmin ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+          {[
+            {
+              label: "Client Name",
+              value: clientName,
+              placeholder: "Jane Smith",
+              type: "text",
+              onChange: (v: string) => { setClientName(v); save({ clientName: v, businessName, startDate }); },
+            },
+            {
+              label: "Business Name",
+              value: businessName,
+              placeholder: "Smith Bakery",
+              type: "text",
+              onChange: (v: string) => { setBusinessName(v); save({ clientName, businessName: v, startDate }); },
+            },
+            {
+              label: "Project Start",
+              value: startDate,
+              placeholder: "",
+              type: "date",
+              onChange: (v: string) => { setStartDate(v); save({ clientName, businessName, startDate: v }); },
+            },
+          ].map((field) => (
+            <div key={field.label}>
+              <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                {field.label}
+              </label>
+              <Input
+                type={field.type}
+                value={field.value}
+                placeholder={field.placeholder}
+                onChange={(e) => field.onChange(e.target.value)}
+                className="h-9"
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+          {[
+            { label: "Contact", value: clientName },
+            { label: "Business", value: businessName },
+            { label: "Started", value: startDate ? new Date(startDate).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "" },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                {label}
+              </span>
+              <span className="text-sm text-foreground">{value || <span className="text-muted-foreground">—</span>}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {!isAdmin && briefRows.length > 0 && (
         <div className="pt-4 mb-5 border-t border-border">
@@ -117,7 +132,7 @@ export function ClientInfoCard({ project, completedSteps, totalSteps, isAdmin, b
       <div>
         <div className="flex justify-between text-xs text-muted-foreground uppercase tracking-wider mb-1.5">
           <span>Overall Progress</span>
-          <span>{completedSteps} / {totalSteps} steps</span>
+          {isAdmin && <span>{completedSteps} / {totalSteps} steps</span>}
         </div>
         <ProgressBar value={pct} gradient />
       </div>

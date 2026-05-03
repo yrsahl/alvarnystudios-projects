@@ -94,3 +94,15 @@ export const phaseNotes = pgTable(
     uniqueIndex("phase_notes_project_phase_idx").on(t.projectId, t.phaseNumber),
   ],
 );
+
+export const phaseArtifacts = pgTable("phase_artifacts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  phaseNumber: integer("phase_number").notNull(),
+  from: text("from").notNull(), // "admin" | "client"
+  label: text("label").notNull(),
+  url: text("url").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});

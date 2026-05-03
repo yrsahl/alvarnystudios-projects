@@ -3,6 +3,7 @@ import { useFetcher, useParams } from "react-router";
 import type { Phase } from "~/lib/phases";
 import { TOOL_URLS } from "~/lib/phases";
 import { BrandValuesPanel, type BrandData } from "./BrandValuesPanel";
+import { PhaseArtifacts, type Artifact } from "./PhaseArtifacts";
 import { ProjectBriefPanel, type BriefData } from "./ProjectBriefPanel";
 import { ProgressBar } from "./ProgressBar";
 import { StepItem } from "./StepItem";
@@ -15,7 +16,7 @@ function mergeNotes(base: string, local: string, remote: string): string {
     const remoteNew = remote.slice(base.length).trimStart();
     return local + (local.endsWith("\n") ? "" : "\n") + remoteNew;
   }
-  return local + "\n\n" + remote;
+  return `${local}\n\n${remote}`;
 }
 
 interface Props {
@@ -24,6 +25,8 @@ interface Props {
   initialAdminNotes: string;
   initialClientNotes: string;
   isAdmin: boolean;
+  initialOpen?: boolean;
+  artifacts: Artifact[];
   brand?: BrandData;
   brief?: BriefData;
   onStepToggle: (phaseNumber: number, stepIndex: number, checked: boolean) => void;
@@ -32,9 +35,9 @@ interface Props {
 const textareaClass =
   "w-full bg-background border border-input rounded-md px-3 py-2.5 text-sm text-foreground leading-relaxed placeholder:text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y transition-colors";
 
-export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClientNotes, isAdmin, brand, brief, onStepToggle }: Props) {
+export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClientNotes, isAdmin, initialOpen, artifacts, brand, brief, onStepToggle }: Props) {
   const { slug } = useParams();
-  const [open, setOpen] = useState(phase.n === 0);
+  const [open, setOpen] = useState(initialOpen ?? phase.n === 0);
   const [adminNotes, setAdminNotes] = useState(initialAdminNotes);
   const [clientNotes, setClientNotes] = useState(initialClientNotes);
   const fetcher = useFetcher({});
@@ -98,6 +101,11 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
     }, 1000);
   }
 
+  const clientSteps = phase.steps
+    .map((step, i) => ({ step, i }))
+    .filter(({ step }) => step.clientOwned);
+  const hasClientTasks = clientSteps.length > 0;
+
   return (
     <div className="grid mb-2" style={{ gridTemplateColumns: "40px 1fr", gap: "0 16px" }}>
       {/* Phase dot */}
@@ -113,8 +121,12 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
           <svg width="14" height="11" viewBox="0 0 14 11" fill="none">
             <path d="M1.5 5.5L5 9L12.5 1.5" stroke={phase.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-        ) : (
+        ) : isAdmin ? (
           phase.n
+        ) : (
+          <svg width="6" height="6" viewBox="0 0 6 6" fill="none">
+            <circle cx="3" cy="3" r="3" fill={phase.color} />
+          </svg>
         )}
       </div>
 
@@ -124,26 +136,34 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
         <button onClick={() => setOpen((o) => !o)} className="w-full px-5 pt-4 pb-0 text-left cursor-pointer">
           <div className="flex items-center justify-between gap-4 pb-3">
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-foreground">{phase.title}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{phase.sub}</div>
+              <div className="text-sm font-semibold text-foreground">
+                {isAdmin ? phase.title : (phase.clientTitle ?? phase.title)}
+              </div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                {isAdmin ? phase.sub : (phase.clientSub ?? phase.sub)}
+              </div>
             </div>
             <div className="flex items-center gap-2.5 shrink-0">
-              <span
-                className="text-xs font-semibold tabular-nums transition-colors"
-                style={{ color: allDone ? "#34D399" : "var(--muted-foreground)" }}
-              >
-                {completedCount}/{totalCount}
-              </span>
-              <span
-                className="text-xs font-medium px-2.5 py-0.5 rounded-full border whitespace-nowrap"
-                style={{
-                  backgroundColor: `${phase.color}18`,
-                  borderColor: `${phase.color}40`,
-                  color: phase.color,
-                }}
-              >
-                {phase.badge}
-              </span>
+              {isAdmin && (
+                <span
+                  className="text-xs font-semibold tabular-nums transition-colors"
+                  style={{ color: allDone ? "#34D399" : "var(--muted-foreground)" }}
+                >
+                  {completedCount}/{totalCount}
+                </span>
+              )}
+              {isAdmin && (
+                <span
+                  className="text-xs font-medium px-2.5 py-0.5 rounded-full border whitespace-nowrap"
+                  style={{
+                    backgroundColor: `${phase.color}18`,
+                    borderColor: `${phase.color}40`,
+                    color: phase.color,
+                  }}
+                >
+                  {phase.badge}
+                </span>
+              )}
               <svg
                 width="10" height="10" viewBox="0 0 10 10" fill="none"
                 className="shrink-0 transition-transform duration-200 text-muted-foreground"
@@ -159,27 +179,90 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
         {/* Expandable body */}
         {open && (
           <div className="border-t border-border p-5 bg-secondary/40">
+
+            {/* Client view: notes → artifacts → tasks */}
+            {!isAdmin && phase.n !== 0 && (
+              <div className="mb-5 space-y-5">
+                <div>
+                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                    Notes
+                  </h4>
+                  <textarea
+                    ref={textareaRef}
+                    value={clientNotes}
+                    onChange={(e) => handleClientNotesChange(e.target.value)}
+                    placeholder="Leave notes or questions for your designer here…"
+                    rows={3}
+                    className={textareaClass}
+                  />
+                </div>
+                <PhaseArtifacts
+                  phaseNumber={phase.n}
+                  artifacts={artifacts}
+                  isAdmin={false}
+                  color={phase.color}
+                  adminHint={phase.adminArtifactHint}
+                  clientHint={phase.clientArtifactHint}
+                />
+              </div>
+            )}
+
             <div className={`grid gap-5 ${isAdmin ? "grid-cols-1 xl:grid-cols-2" : "grid-cols-1"}`}>
               {/* Steps */}
               <div>
-                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  Steps
-                </h4>
-                <ul>
-                  {phase.steps.map((step, i) => (
-                    <StepItem
-                      key={i}
-                      text={step.text}
-                      index={i}
-                      phaseNumber={phase.n}
-                      checked={checkedSteps[i] ?? false}
-                      color={phase.color}
-                      clientOwned={step.clientOwned ?? false}
-                      isAdmin={isAdmin}
-                      onToggle={(idx, val) => onStepToggle(phase.n, idx, val)}
-                    />
-                  ))}
-                </ul>
+                {isAdmin ? (
+                  <>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                      Steps
+                    </h4>
+                    <ul>
+                      {phase.steps.map((step, i) => (
+                        <StepItem
+                          key={i}
+                          text={step.text}
+                          index={i}
+                          phaseNumber={phase.n}
+                          checked={checkedSteps[i] ?? false}
+                          color={phase.color}
+                          clientOwned={step.clientOwned ?? false}
+                          isAdmin={isAdmin}
+                          onToggle={(idx, val) => onStepToggle(phase.n, idx, val)}
+                        />
+                      ))}
+                    </ul>
+                  </>
+                ) : hasClientTasks ? (
+                  <>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                      Your tasks
+                    </h4>
+                    <ul>
+                      {clientSteps.map(({ step, i }) => (
+                        <StepItem
+                          key={i}
+                          text={step.clientText ?? step.text}
+                          index={i}
+                          phaseNumber={phase.n}
+                          checked={checkedSteps[i] ?? false}
+                          color={phase.color}
+                          clientOwned={true}
+                          isAdmin={false}
+                          onToggle={(idx, val) => onStepToggle(phase.n, idx, val)}
+                        />
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <div
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-muted border border-border text-xs text-muted-foreground"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
+                      <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M4.5 7.5l2 2 3-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Your team is handling this phase — no action needed from you.
+                  </div>
+                )}
               </div>
 
               {/* Tools + Key Insight — admin only */}
@@ -217,9 +300,21 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
             {phase.n === 0 && brief && <ProjectBriefPanel brief={brief} isAdmin={isAdmin} />}
             {phase.n === 1 && brand && <BrandValuesPanel brand={brand} />}
 
-            {/* Notes */}
-            <div className="mt-5 pt-5 border-t border-border space-y-4">
-              {isAdmin && (
+            {/* Artifact exchange — admin view */}
+            {isAdmin && (
+              <PhaseArtifacts
+                phaseNumber={phase.n}
+                artifacts={artifacts}
+                isAdmin={true}
+                color={phase.color}
+                adminHint={phase.adminArtifactHint}
+                clientHint={phase.clientArtifactHint}
+              />
+            )}
+
+            {/* Admin notes + shared notes (admin view) */}
+            {isAdmin && (
+              <div className="mt-5 pt-5 border-t border-border space-y-4">
                 <div>
                   <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                     Admin Notes
@@ -232,24 +327,24 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
                     className={textareaClass}
                   />
                 </div>
-              )}
 
-              {phase.n !== 0 && (
-                <div>
-                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                    Shared Notes
-                  </h4>
-                  <textarea
-                    ref={textareaRef}
-                    value={clientNotes}
-                    onChange={(e) => handleClientNotesChange(e.target.value)}
-                    placeholder="Agreed decisions, links, values confirmed with client…"
-                    rows={3}
-                    className={textareaClass}
-                  />
-                </div>
-              )}
-            </div>
+                {phase.n !== 0 && (
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                      Shared Notes
+                    </h4>
+                    <textarea
+                      ref={textareaRef}
+                      value={clientNotes}
+                      onChange={(e) => handleClientNotesChange(e.target.value)}
+                      placeholder="Agreed decisions, links, values confirmed with client…"
+                      rows={3}
+                      className={textareaClass}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
