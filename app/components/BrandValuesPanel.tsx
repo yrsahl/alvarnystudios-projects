@@ -136,6 +136,7 @@ export function BrandValuesPanel({ brand }: Props) {
                 value={values[key] as string}
                 onChange={(e) => handleColorChange(key, e.target.value)}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                suppressHydrationWarning
               />
             </div>
             <input

@@ -6,7 +6,7 @@ import { ProjectTimeline } from "~/components/ProjectTimeline";
 import { db } from "~/db/index.server";
 import { brandValues, phaseArtifacts, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
 import { PHASES } from "~/lib/phases";
-import { getSession } from "~/lib/session.server";
+import { getIsAdmin } from "~/lib/session.server";
 import type { Route } from "./+types/project";
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -15,8 +15,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 export async function loader({ params, request }: Route.LoaderArgs) {
-  const session = await getSession(request.headers.get("Cookie"));
-  const isAdmin = session.get("isAdmin") ?? false;
+  const isAdmin = await getIsAdmin(request);
 
   if (!isAdmin) throw redirect(`/view/${params.slug}`);
 

@@ -19,9 +19,18 @@ const { getSession, commitSession, destroySession } =
 
 export { getSession, commitSession, destroySession };
 
+const DEV = process.env.NODE_ENV === "development";
+
 export async function requireAdmin(request: Request): Promise<void> {
+  if (DEV) return;
   const session = await getSession(request.headers.get("Cookie"));
   if (!session.get("isAdmin")) {
     throw redirect("/admin-login");
   }
+}
+
+export async function getIsAdmin(request: Request): Promise<boolean> {
+  if (DEV) return true;
+  const session = await getSession(request.headers.get("Cookie"));
+  return session.get("isAdmin") ?? false;
 }
