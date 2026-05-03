@@ -159,7 +159,7 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
         {/* Expandable body */}
         {open && (
           <div className="border-t border-border p-5 bg-secondary/40">
-            <div className={`grid gap-5 ${isAdmin ? "grid-cols-2" : "grid-cols-1"}`}>
+            <div className={`grid gap-5 ${isAdmin ? "grid-cols-1 xl:grid-cols-2" : "grid-cols-1"}`}>
               {/* Steps */}
               <div>
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">

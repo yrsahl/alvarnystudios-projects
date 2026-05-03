@@ -125,20 +125,20 @@ export default function ClientProjectView({ loaderData }: Route.ComponentProps) 
   return (
     <div className="flex min-h-screen flex-col">
       {/* Navbar */}
-      <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-6">
-        <a href="/" className="flex items-center gap-2">
+      <header className="sticky top-0 z-50 flex h-14 items-center gap-3 justify-between border-b border-border bg-background px-4 sm:px-6">
+        <a href="/" className="flex items-center gap-2 shrink-0">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
             <span className="text-sm font-bold text-background">S</span>
           </div>
-          <span className="text-sm font-semibold text-foreground">Studio</span>
+          <span className="hidden sm:inline text-sm font-semibold text-foreground">Studio</span>
         </a>
 
-        <p className="text-sm font-medium text-foreground">{displayName}</p>
+        <p className="text-sm font-medium text-foreground truncate min-w-0">{displayName}</p>
 
         <ThemeToggle />
       </header>
 
-      <main className="flex-1 px-6 py-8 max-w-4xl mx-auto w-full">
+      <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto w-full">
         <ProjectTimeline
           project={project}
           brand={brand}

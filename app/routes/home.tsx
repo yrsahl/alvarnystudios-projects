@@ -218,17 +218,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <NewProjectModal open={showModal} onClose={() => setShowModal(false)} onCreated={handleCreated} />
       <div className="flex min-h-screen flex-col">
         {/* ── Navbar ── */}
-        <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-6">
-          <div className="flex items-center gap-6">
-            <a className="flex items-center gap-2" href="/">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
-                <span className="text-sm font-bold text-background">S</span>
-              </div>
-              <span className="text-sm font-semibold text-foreground">Studio</span>
-            </a>
-          </div>
+        <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 sm:px-6 gap-3">
+          <a className="flex items-center gap-2 shrink-0" href="/">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
+              <span className="text-sm font-bold text-background">S</span>
+            </div>
+            <span className="hidden sm:inline text-sm font-semibold text-foreground">Studio</span>
+          </a>
 
-          <div className="flex flex-1 items-center justify-center px-8">
+          <div className="flex flex-1 items-center min-w-0">
             <div className="relative w-full max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -241,26 +239,27 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <a
               href="/view"
               target="_blank"
-              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-md px-2 sm:px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              title="Client Portal"
             >
               <Globe className="h-3.5 w-3.5" />
-              Client Portal
+              <span className="hidden md:inline">Client Portal</span>
             </a>
             <button
               onClick={() => setShowModal(true)}
-              className="flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90 cursor-pointer"
+              className="flex items-center gap-1.5 rounded-md bg-foreground px-2 sm:px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90 cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
-              New Project
+              <span className="hidden sm:inline">New Project</span>
             </button>
             <ThemeToggle />
             <Form method="post">
               <input type="hidden" name="intent" value="logout" />
-              <button className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground cursor-pointer">
+              <button className="hidden sm:block rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground cursor-pointer">
                 Log out
               </button>
             </Form>
@@ -269,7 +268,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
         <div className="flex flex-1">
           {/* ── Sidebar ── */}
-          <aside className="sticky top-14 h-[calc(100vh-3.5rem)] w-56 shrink-0 border-r border-border bg-sidebar p-4 overflow-y-auto">
+          <aside className="hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)] w-56 shrink-0 border-r border-border bg-sidebar p-4 overflow-y-auto">
             <nav className="flex flex-col gap-1">
               <button
                 onClick={() => scrollTo("overview", null)}
@@ -315,13 +314,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </aside>
 
           {/* ── Main ── */}
-          <main className="flex-1 p-8 min-w-0">
+          <main className="flex-1 p-4 sm:p-8 min-w-0">
             {/* Overview section */}
             <section id="overview" className="mb-10 scroll-mt-20">
               <h1 className="mb-6 text-2xl font-semibold text-foreground">Overview</h1>
 
               {/* Chart + stats side by side */}
-              <div className="mb-8 flex flex-wrap gap-4 items-start">
+              <div className="mb-8 flex flex-col sm:flex-row flex-wrap gap-4 items-start">
                 <div className="rounded-lg border border-border bg-card p-5">
                   <PhaseChart phaseCounts={phaseCounts} />
                 </div>

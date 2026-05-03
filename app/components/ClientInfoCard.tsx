@@ -57,7 +57,7 @@ export function ClientInfoCard({ project, completedSteps, totalSteps, isAdmin, b
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
         {[
           {
             label: "Client Name",
@@ -103,7 +103,7 @@ export function ClientInfoCard({ project, completedSteps, totalSteps, isAdmin, b
           <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Project Brief
           </span>
-          <dl className="grid grid-cols-3 gap-x-6 gap-y-3">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
             {briefRows.map(({ label, value }) => (
               <div key={label}>
                 <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">{label}</dt>

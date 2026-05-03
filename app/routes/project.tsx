@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { Globe } from "lucide-react";
 import { Link, redirect } from "react-router";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
@@ -176,20 +177,30 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Navbar */}
-      <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-6">
-        <Link to="/" className="flex items-center gap-2">
+      <header className="sticky top-0 z-50 flex h-14 items-center gap-3 justify-between border-b border-border bg-background px-4 sm:px-6">
+        <Link to="/" className="flex items-center gap-2 shrink-0">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
             <span className="text-sm font-bold text-background">S</span>
           </div>
-          <span className="text-sm font-semibold text-foreground">Studio</span>
+          <span className="hidden sm:inline text-sm font-semibold text-foreground">Studio</span>
         </Link>
 
-        <p className="text-sm font-medium text-foreground">{project.name}</p>
+        <p className="text-sm font-medium text-foreground truncate min-w-0">{project.name}</p>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <a
+            href={`/view/${project.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-md px-2 sm:px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            title="Open client view"
+          >
+            <Globe className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">Client view</span>
+          </a>
           <Link
             to="/"
-            className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="hidden sm:block rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             ← Dashboard
           </Link>
@@ -197,7 +208,7 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
         </div>
       </header>
 
-      <main className="flex-1 px-6 py-8 max-w-4xl mx-auto w-full">
+      <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto w-full">
         <ProjectTimeline
           project={project}
           brand={brand}

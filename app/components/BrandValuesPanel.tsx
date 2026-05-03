@@ -121,7 +121,7 @@ export function BrandValuesPanel({ brand }: Props) {
         Brand Values
       </h4>
 
-      <div className="grid grid-cols-5 gap-3 mb-5">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-5">
         {COLOR_FIELDS.map(({ key, label }) => (
           <div key={key} className="flex flex-col gap-1.5">
             <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
