@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { LayoutDashboard, Plus, Search, UserPlus } from "lucide-react";
+import { CodeIcon, LayoutDashboard, Plus, Search, ShoppingCartIcon, UserPlus } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useMemo, useState } from "react";
 import { Form, redirect } from "react-router";
@@ -11,13 +11,7 @@ import { ThemeToggle } from "~/components/ThemeToggle";
 import { Input } from "~/components/ui/input";
 import { db } from "~/db/index.server";
 import { brandValues, leads as leadsTable, phaseSteps, projects } from "~/db/schema";
-import {
-  getPhases,
-  getTotalSteps,
-  PROJECT_TYPE_LABELS,
-  TOOL_URLS,
-  type ProjectType,
-} from "~/lib/phases";
+import { getPhases, getTotalSteps, PROJECT_TYPE_LABELS, TOOL_URLS, type ProjectType } from "~/lib/phases";
 import { destroySession, getSession, requireAdmin } from "~/lib/session.server";
 import { cn } from "~/lib/utils";
 import type { Route } from "./+types/home";
@@ -103,10 +97,7 @@ export async function action({ request }: Route.ActionArgs) {
     const businessName = String(formData.get("businessName") ?? "").trim();
     if (!name) return { error: "Project name is required." };
     const slug = nanoid(8).toLowerCase();
-    const [project] = await db
-      .insert(projects)
-      .values({ slug, name, type, clientName, businessName })
-      .returning();
+    const [project] = await db.insert(projects).values({ slug, name, type, clientName, businessName }).returning();
     await db.insert(brandValues).values({ projectId: project.id });
     return { ok: true, slug };
   }
@@ -129,10 +120,7 @@ export async function action({ request }: Route.ActionArgs) {
   if (intent === "update-lead-status") {
     const leadId = String(formData.get("leadId"));
     const status = String(formData.get("status"));
-    await db
-      .update(leadsTable)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(leadsTable.id, leadId));
+    await db.update(leadsTable).set({ status, updatedAt: new Date() }).where(eq(leadsTable.id, leadId));
     return { ok: true };
   }
 
@@ -141,7 +129,9 @@ export async function action({ request }: Route.ActionArgs) {
     const lead = await db.query.leads.findFirst({ where: eq(leadsTable.id, leadId) });
     if (!lead) return { error: "Lead not found." };
     const slug = nanoid(8).toLowerCase();
-    const name = [lead.businessName || lead.name, PROJECT_TYPE_LABELS[lead.projectType as ProjectType]].filter(Boolean).join(" ");
+    const name = [lead.businessName || lead.name, PROJECT_TYPE_LABELS[lead.projectType as ProjectType]]
+      .filter(Boolean)
+      .join(" ");
     const [project] = await db
       .insert(projects)
       .values({ slug, name, type: lead.projectType, clientName: lead.name, businessName: lead.businessName })
@@ -180,14 +170,16 @@ function slicePath(cx: number, cy: number, r: number, start: number, end: number
 type ProjectWithMeta = Awaited<ReturnType<typeof loader>>["projects"][number];
 
 function PhaseChart({ phases, projects }: { phases: ReturnType<typeof getPhases>; projects: ProjectWithMeta[] }) {
-  const cx = 60, cy = 60, r = 52;
+  const cx = 60,
+    cy = 60,
+    r = 52;
   const phaseCounts = phases.map((phase) => ({
     phase,
     count: projects.filter((p) => p.currentPhaseIndex === phase.n).length,
   }));
   const total = phaseCounts.reduce((s, { count }) => s + count, 0);
 
-  const slices: { phase: typeof phases[0]; count: number; startAngle: number; endAngle: number }[] = [];
+  const slices: { phase: (typeof phases)[0]; count: number; startAngle: number; endAngle: number }[] = [];
   let cursor = 0;
   for (const { phase, count } of phaseCounts) {
     const sweep = total > 0 ? (count / total) * 360 : 0;
@@ -210,15 +202,35 @@ function PhaseChart({ phases, projects }: { phases: ReturnType<typeof getPhases>
           )
         )}
         <circle cx={cx} cy={cy} r={32} className="fill-card" />
-        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" className="fill-foreground" style={{ fontSize: 16, fontWeight: 600 }}>{total}</text>
-        <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>projects</text>
+        <text
+          x={cx}
+          y={cy}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className="fill-foreground"
+          style={{ fontSize: 16, fontWeight: 600 }}
+        >
+          {total}
+        </text>
+        <text
+          x={cx}
+          y={cy + 16}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className="fill-muted-foreground"
+          style={{ fontSize: 10 }}
+        >
+          projects
+        </text>
       </svg>
       <div className="grid grid-cols-2 gap-x-6 gap-y-2">
         {slices.map((s) => (
           <div key={s.phase.n} className="flex items-center gap-2" title={s.phase.title}>
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.phase.color }} />
             <span className="text-sm text-muted-foreground truncate max-w-20">{s.phase.title.split(" ")[0]}</span>
-            <span className="ml-auto text-sm font-semibold tabular-nums pl-2" style={{ color: s.phase.color }}>{s.count}</span>
+            <span className="ml-auto text-sm font-semibold tabular-nums pl-2" style={{ color: s.phase.color }}>
+              {s.count}
+            </span>
           </div>
         ))}
       </div>
@@ -228,7 +240,7 @@ function PhaseChart({ phases, projects }: { phases: ReturnType<typeof getPhases>
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
 
-const TYPE_ORDER: ProjectType[] = ["website", "shop", "app"];
+const TYPE_ORDER: ProjectType[] = ["website", "shop"];
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const { projects, leads } = loaderData;
@@ -267,10 +279,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   );
 
   const phaseCounts = useMemo(
-    () => phases.map((phase) => ({
-      phase,
-      count: projects.filter((p) => p.type === activeType && p.currentPhaseIndex === phase.n).length,
-    })),
+    () =>
+      phases.map((phase) => ({
+        phase,
+        count: projects.filter((p) => p.type === activeType && p.currentPhaseIndex === phase.n).length,
+      })),
     [projects, phases, activeType],
   );
 
@@ -279,9 +292,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const retainerCount = projects.filter((p) => p.type === activeType && p.currentPhaseIndex === lastPhaseN).length;
 
   const retainerRange =
-    activeType === "shop" ? `€${retainerCount * 150}–${retainerCount * 400}` :
-    activeType === "app"  ? `€${retainerCount * 200}–${retainerCount * 600}` :
-                            `€${retainerCount * 100}–${retainerCount * 300}`;
+    activeType === "shop"
+      ? `€${retainerCount * 150}–${retainerCount * 400}`
+      : `€${retainerCount * 100}–${retainerCount * 300}`;
 
   function scrollTo(id: string, key: string) {
     setLastClicked(key);
@@ -300,15 +313,37 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       <div className="flex min-h-screen flex-col">
         {/* Navbar */}
-        <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 sm:px-6 gap-3">
+        <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 sm:px-6 gap-6">
           <a className="flex items-center gap-2 shrink-0" href="/">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
-              <span className="text-sm font-bold text-background">S</span>
+            <div className="flex h-7 w-10 items-center justify-center rounded-md bg-foreground">
+              <span className="text-sm font-bold text-background">AS</span>
             </div>
-            <span className="hidden sm:inline text-sm font-semibold text-foreground">Studio</span>
+            <span className="hidden sm:inline text-sm font-semibold text-foreground capitalize w-15">
+              {activeType}s
+            </span>
           </a>
 
-          <div className="flex flex-1 items-center min-w-0">
+          <div className="flex items-center gap-1 bg-secondary rounded-lg p-1 w-fit">
+            {TYPE_ORDER.map((type) => {
+              return (
+                <button
+                  key={type}
+                  onClick={() => setActiveType(type)}
+                  className={cn(
+                    "px-4 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer",
+                    activeType === type
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {PROJECT_TYPE_LABELS[type] === "Website" && <CodeIcon className="w-3.5 h-3.5" />}
+                  {PROJECT_TYPE_LABELS[type] === "Shop" && <ShoppingCartIcon className="w-3.5 h-3.5" />}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="px-8 hidden sm:flex flex-1 items-center justify-center min-w-0">
             <div className="relative w-full max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -335,7 +370,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               className="flex items-center gap-1.5 rounded-md bg-foreground px-2 sm:px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90 cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">New {PROJECT_TYPE_LABELS[activeType]}</span>
+              <span className="hidden sm:inline">New Project</span>
             </button>
             <ThemeToggle />
             <Form method="post">
@@ -351,6 +386,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           {/* Sidebar */}
           <aside className="hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)] w-56 shrink-0 border-r border-border bg-sidebar p-4 overflow-y-auto">
             <nav className="flex flex-col gap-1">
+              <button
+                onClick={() => scrollTo("overview", "overview")}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  lastClicked === "overview"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                )}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Overview
+              </button>
+
               <button
                 onClick={() => scrollTo("leads", "leads")}
                 className={cn(
@@ -369,19 +417,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     {activeLeads.length}
                   </span>
                 )}
-              </button>
-
-              <button
-                onClick={() => scrollTo("overview", "overview")}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  lastClicked === "overview"
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                )}
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                Overview
               </button>
 
               <div className="my-3 px-3">
@@ -416,47 +451,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
           {/* Main */}
           <main className="flex-1 p-4 sm:p-8 min-w-0">
-
-            {/* Leads */}
-            {leads.length > 0 && (
-              <section id="leads" className="mb-10 scroll-mt-20">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-foreground">Leads</h2>
-                  <span className="text-sm text-muted-foreground">{activeLeads.length} active</span>
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {leads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} />
-                  ))}
-                </div>
-              </section>
-            )}
-
             {/* Type filter + overview */}
             <section id="overview" className="mb-10 scroll-mt-20">
-              <div className="flex items-center gap-1 mb-6 bg-secondary rounded-lg p-1 w-fit">
-                {TYPE_ORDER.map((type) => {
-                  const count = projects.filter((p) => p.type === type).length;
-                  return (
-                    <button
-                      key={type}
-                      onClick={() => setActiveType(type)}
-                      className={cn(
-                        "px-4 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer",
-                        activeType === type
-                          ? "bg-background text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {PROJECT_TYPE_LABELS[type]}
-                      {count > 0 && (
-                        <span className="ml-1.5 text-xs text-muted-foreground tabular-nums">{count}</span>
-                      )}
-                    </button>
-                  );
-                })}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-foreground">Overview</h2>
               </div>
-
               <div className="mb-8 flex flex-col sm:flex-row flex-wrap gap-4 items-start">
                 <div className="rounded-lg border border-border bg-card p-5">
                   <PhaseChart phases={phases} projects={projects.filter((p) => p.type === activeType)} />
@@ -466,7 +465,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   {[
                     {
                       label: "Active",
-                      value: String(projects.filter((p) => p.type === activeType && p.currentPhaseIndex < lastPhaseN).length),
+                      value: String(
+                        projects.filter((p) => p.type === activeType && p.currentPhaseIndex < lastPhaseN).length,
+                      ),
                       sub: "in progress",
                     },
                     {
@@ -485,6 +486,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </div>
             </section>
 
+            {/* Leads */}
+            {leads.length > 0 && (
+              <section id="leads" className="mb-10 scroll-mt-20">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-foreground">Leads</h2>
+                  <span className="text-sm text-muted-foreground">{activeLeads.length} active</span>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {leads.map((lead) => (
+                    <LeadCard key={lead.id} lead={lead} />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Projects by phase */}
             {phaseGroups.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -492,7 +508,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   {search ? "No projects match" : `No ${PROJECT_TYPE_LABELS[activeType].toLowerCase()} projects yet`}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {search ? "Try a different search term" : `Click "New ${PROJECT_TYPE_LABELS[activeType]}" to get started`}
+                  {search
+                    ? "Try a different search term"
+                    : `Click "New ${PROJECT_TYPE_LABELS[activeType]}" to get started`}
                 </p>
               </div>
             ) : (

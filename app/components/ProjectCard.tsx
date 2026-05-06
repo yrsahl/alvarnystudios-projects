@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { cn } from "~/lib/utils";
 import type { Phase, ProjectType } from "~/lib/phases";
+import { cn } from "~/lib/utils";
 
 const TYPE_LABELS: Record<ProjectType, string> = {
   website: "Web",
   shop: "Shop",
-  app: "App",
+  // app: "App",
 };
 
 interface ProjectCardProps {
@@ -79,25 +79,23 @@ export function ProjectCard({
             alt=""
             aria-hidden="true"
             className="absolute inset-0 h-full w-full object-cover object-top opacity-0 transition-opacity duration-700"
-            onLoad={(e) => { e.currentTarget.style.opacity = "0.9"; }}
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onLoad={(e) => {
+              e.currentTarget.style.opacity = "0.9";
+            }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
           <div className="absolute inset-0 bg-linear-to-b from-card/50 via-card/20 to-card/90" />
         </>
       )}
 
-      <Link
-        to={`/project/${slug}`}
-        className="absolute inset-0 z-0 rounded-xl"
-        aria-label={`Open ${name}`}
-      />
+      <Link to={`/project/${slug}`} className="absolute inset-0 z-0 rounded-xl" aria-label={`Open ${name}`} />
 
       <div className="relative z-10 flex items-start justify-between gap-2 pointer-events-none min-w-0">
         <div className="min-w-0">
           <h3 className="font-medium text-card-foreground leading-snug truncate">{name}</h3>
-          {subtitle && (
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>
-          )}
+          {subtitle && <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <span
@@ -140,7 +138,11 @@ export function ProjectCard({
             {slug}
           </code>
           <button
-            onClick={(e) => { e.stopPropagation(); e.preventDefault(); copyClientLink(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              copyClientLink();
+            }}
             className="pointer-events-auto text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted cursor-pointer"
           >
             Copy client link

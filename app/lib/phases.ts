@@ -1,4 +1,4 @@
-export type ProjectType = "website" | "shop" | "app";
+export type ProjectType = "website" | "shop";
 
 export interface Step {
   text: string;
@@ -42,7 +42,8 @@ export const WEBSITE_PHASES: Phase[] = [
     tip: "Key question: What action should every visitor take? (Call, book, buy, visit.) Everything else follows from this.",
     adminArtifactHint: "e.g. Discovery call recording, competitor research, brief template",
     clientArtifactHint: "e.g. Existing logo, brand guidelines, competitor sites you like",
-    handoverNote: "Once the brief is filled in, send the client their project link so they can track progress and upload brand assets.",
+    handoverNote:
+      "Once the brief is filled in, send the client their project link so they can track progress and upload brand assets.",
     clientGuidance: "",
   },
   {
@@ -70,8 +71,10 @@ export const WEBSITE_PHASES: Phase[] = [
     tip: "Looka → brand tokens → v0 layout → Midjourney images. Client sees a working preview before you write a single component.",
     adminArtifactHint: "e.g. v0 preview link, logo options, colour palette PDF",
     clientArtifactHint: "e.g. Brand inspiration images, existing logo file, reference sites you like",
-    handoverNote: "Share the Vercel preview link and any logo options. Wait for the client's feedback before finalising colours and generating images.",
-    clientGuidance: "Your designer is building your brand identity. Once they share a preview below, click through it and leave your thoughts — what you love and what to change.",
+    handoverNote:
+      "Share the Vercel preview link and any logo options. Wait for the client's feedback before finalising colours and generating images.",
+    clientGuidance:
+      "Your designer is building your brand identity. Once they share a preview below, click through it and leave your thoughts — what you love and what to change.",
   },
   {
     n: 2,
@@ -97,8 +100,10 @@ export const WEBSITE_PHASES: Phase[] = [
     tip: "The starter template means most of this is config, not coding. Aim for a first working preview within one day.",
     adminArtifactHint: "e.g. Staging site URL, Sanity Studio link, Vercel preview link",
     clientArtifactHint: "e.g. Google Drive content folder, existing site copy, product photos",
-    handoverNote: "Share the Sanity Studio link so the client can start adding content. Share the staging URL so they can preview progress in real time.",
-    clientGuidance: "We're building your website. Your main job right now is to add your content (text, images, services) to the CMS using the link below — the more complete it is, the faster we can finish.",
+    handoverNote:
+      "Share the Sanity Studio link so the client can start adding content. Share the staging URL so they can preview progress in real time.",
+    clientGuidance:
+      "We're building your website. Your main job right now is to add your content (text, images, services) to the CMS using the link below — the more complete it is, the faster we can finish.",
   },
   {
     n: 3,
@@ -123,8 +128,10 @@ export const WEBSITE_PHASES: Phase[] = [
     tip: "GBP optimisation often has more immediate local impact than the website itself. Do this in parallel with development.",
     adminArtifactHint: "e.g. Keyword research doc, GBP optimisation guide, analytics dashboard link",
     clientArtifactHint: "e.g. Google Business Profile URL, photo library (Drive), service areas list",
-    handoverNote: "Share the GBP optimisation guide with the client. They need to update their own profile — prompt them clearly, it's their task.",
-    clientGuidance: "We're setting up your Google presence. Your task: update your Google Business Profile with fresh photos, correct hours, and your service categories. See your checklist below.",
+    handoverNote:
+      "Share the GBP optimisation guide with the client. They need to update their own profile — prompt them clearly, it's their task.",
+    clientGuidance:
+      "We're setting up your Google presence. Your task: update your Google Business Profile with fresh photos, correct hours, and your service categories. See your checklist below.",
   },
   {
     n: 4,
@@ -150,8 +157,10 @@ export const WEBSITE_PHASES: Phase[] = [
     tip: "German market: Impressum and Datenschutzerklärung are legal requirements. Use datenschutz.org for the privacy policy generator.",
     adminArtifactHint: "e.g. DNS / nameserver instructions, handoff doc PDF, Loom walkthrough link",
     clientArtifactHint: "e.g. Domain registrar name, DNS login details",
-    handoverNote: "Share the DNS connection instructions and the Loom walkthrough before going live. Don't mark this done until the domain is live.",
-    clientGuidance: "Almost there! Your site is ready — just one step from you. Follow the domain connection instructions below, and your site will be live.",
+    handoverNote:
+      "Share the DNS connection instructions and the Loom walkthrough before going live. Don't mark this done until the domain is live.",
+    clientGuidance:
+      "Almost there! Your site is ready — just one step from you. Follow the domain connection instructions below, and your site will be live.",
   },
   {
     n: 5,
@@ -172,8 +181,10 @@ export const WEBSITE_PHASES: Phase[] = [
     tip: "Goal: 5–8 retainer clients = €500–2,400/mo of predictable income running alongside new project work.",
     adminArtifactHint: "e.g. Monthly analytics report, campaign results, ad performance summary",
     clientArtifactHint: "e.g. Content update request, new photos, upcoming offers or events",
-    handoverNote: "Send the monthly report and flag any performance issues proactively. Schedule a brief call if there are strategic decisions.",
-    clientGuidance: "We handle your site each month — updates, performance, and growth. Share content requests, new photos, or upcoming promotions below and we'll take it from there.",
+    handoverNote:
+      "Send the monthly report and flag any performance issues proactively. Schedule a brief call if there are strategic decisions.",
+    clientGuidance:
+      "We handle your site each month — updates, performance, and growth. Share content requests, new photos, or upcoming promotions below and we'll take it from there.",
   },
 ];
 
@@ -198,7 +209,8 @@ export const SHOP_PHASES: Phase[] = [
     tip: "Critical: confirm B2B vs B2C before building. Different VAT rules, different checkout flows. Shopify fits most B2C shops under 500 products.",
     adminArtifactHint: "e.g. Discovery call recording, platform comparison, product import template",
     clientArtifactHint: "e.g. Product spreadsheet with prices, existing brand files, competitor shops you like",
-    handoverNote: "Once platform is decided, send the client their project link and the product import template. They should prepare their catalog before Phase 2.",
+    handoverNote:
+      "Once platform is decided, send the client their project link and the product import template. They should prepare their catalog before Phase 2.",
     clientGuidance: "",
   },
   {
@@ -230,8 +242,10 @@ export const SHOP_PHASES: Phase[] = [
     tip: "Product page design matters most — that's where buying decisions happen. Prioritise: clear images, visible price, and a prominent 'Add to cart' button.",
     adminArtifactHint: "e.g. Design preview link, logo options, colour palette, Shopify theme demo",
     clientArtifactHint: "e.g. Brand inspiration, competitor shops you like, existing logo files",
-    handoverNote: "Share the design preview link (Shopify sandbox or Vercel). Ask the client to annotate directly or leave written feedback via notes.",
-    clientGuidance: "Your designer has created a look for your store. Click the preview link below and let us know what you love and what to change — the sooner you give feedback, the faster we can finalise.",
+    handoverNote:
+      "Share the design preview link (Shopify sandbox or Vercel). Ask the client to annotate directly or leave written feedback via notes.",
+    clientGuidance:
+      "Your designer has created a look for your store. Click the preview link below and let us know what you love and what to change — the sooner you give feedback, the faster we can finalise.",
   },
   {
     n: 2,
@@ -259,8 +273,10 @@ export const SHOP_PHASES: Phase[] = [
     tip: "Time saver: send the client a product import template CSV. Shopify's native bulk import is much faster than manual entry for larger catalogs.",
     adminArtifactHint: "e.g. Shopify Admin link, product import template (CSV), staging checkout walkthrough",
     clientArtifactHint: "e.g. Product spreadsheet, product photos (Drive link), pricing list",
-    handoverNote: "Share the admin link and the product import template. The client must add all products before you can QA the checkout — make the dependency clear.",
-    clientGuidance: "The store is set up — now it needs your products! Use the admin link your designer shared to add your products, descriptions, prices, and images. The more complete this is, the sooner you can launch.",
+    handoverNote:
+      "Share the admin link and the product import template. The client must add all products before you can QA the checkout — make the dependency clear.",
+    clientGuidance:
+      "The store is set up — now it needs your products! Use the admin link your designer shared to add your products, descriptions, prices, and images. The more complete this is, the sooner you can launch.",
   },
   {
     n: 3,
@@ -287,8 +303,10 @@ export const SHOP_PHASES: Phase[] = [
     tip: "German law requires Widerrufsbelehrung (14-day right of return) even for digital goods in many cases. Use a generator — don't write it yourself.",
     adminArtifactHint: "e.g. Pre-launch checklist, legal pages doc, test order screenshot",
     clientArtifactHint: "e.g. Updated legal info, confirmed return policy, VAT number",
-    handoverNote: "Share the pre-launch checklist with the client and ask for written sign-off on the legal pages. Do not launch without explicit confirmation.",
-    clientGuidance: "We're doing final checks before launch. Your task: review the legal pages (especially the cancellation policy and T&Cs) and confirm they're accurate — this is a legal requirement in Germany.",
+    handoverNote:
+      "Share the pre-launch checklist with the client and ask for written sign-off on the legal pages. Do not launch without explicit confirmation.",
+    clientGuidance:
+      "We're doing final checks before launch. Your task: review the legal pages (especially the cancellation policy and T&Cs) and confirm they're accurate — this is a legal requirement in Germany.",
   },
   {
     n: 4,
@@ -313,7 +331,8 @@ export const SHOP_PHASES: Phase[] = [
     tip: "The Loom walkthrough is the single biggest reducer of post-launch support emails. Cover: adding a product, processing an order, applying a discount code.",
     adminArtifactHint: "e.g. DNS connection guide, handoff doc, Loom order management walkthrough",
     clientArtifactHint: "e.g. Domain registrar name, nameserver / DNS access details",
-    handoverNote: "Share the DNS instructions and the Loom walkthrough. Wait for domain connection before marking this phase complete.",
+    handoverNote:
+      "Share the DNS instructions and the Loom walkthrough. Wait for domain connection before marking this phase complete.",
     clientGuidance: "Almost there! Follow the domain instructions below and your store will be open for business.",
   },
   {
@@ -335,8 +354,10 @@ export const SHOP_PHASES: Phase[] = [
     tip: "Abandoned cart email sequences alone can recover 5–15% of lost sales. Set up Klaviyo's automated flow in the first retainer month.",
     adminArtifactHint: "e.g. Monthly performance report, ad campaign results, email flow stats",
     clientArtifactHint: "e.g. New products to add, upcoming promotions, seasonal content",
-    handoverNote: "Send the monthly report and flag revenue dips or conversion issues proactively. Schedule a quick call if there are strategic decisions.",
-    clientGuidance: "We handle your store's monthly maintenance and growth. Share new products, upcoming promotions, or anything you'd like changed below — we'll handle the rest.",
+    handoverNote:
+      "Send the monthly report and flag revenue dips or conversion issues proactively. Schedule a quick call if there are strategic decisions.",
+    clientGuidance:
+      "We handle your store's monthly maintenance and growth. Share new products, upcoming promotions, or anything you'd like changed below — we'll handle the rest.",
   },
 ];
 
@@ -361,7 +382,8 @@ export const APP_PHASES: Phase[] = [
     tip: "The most expensive mistake in app development is building the wrong thing. Spend disproportionate time here. A clear user-flow diagram is worth more than a 10-page spec.",
     adminArtifactHint: "e.g. User flow diagram, confirmed feature list (in / out of scope), tech stack doc",
     clientArtifactHint: "e.g. Reference apps you love, rough wireframe sketches, notes from our call",
-    handoverNote: "Share the confirmed feature list and user flow diagram. Get explicit written sign-off on scope — any ambiguity here becomes expensive later.",
+    handoverNote:
+      "Share the confirmed feature list and user flow diagram. Get explicit written sign-off on scope — any ambiguity here becomes expensive later.",
     clientGuidance: "",
   },
   {
@@ -392,8 +414,10 @@ export const APP_PHASES: Phase[] = [
     tip: "Get explicit sign-off on the design before writing a single line of production code. Post-dev design changes are 10× more expensive.",
     adminArtifactHint: "e.g. Figma prototype link, wireframe PDF, design system overview",
     clientArtifactHint: "e.g. Reference screen designs, brand guide, logo files",
-    handoverNote: "Share the Figma prototype link and ask for explicit written approval. Do not start Phase 2 without it — this boundary protects both you and the client.",
-    clientGuidance: "Here's the design for your app. Click through the prototype below — try every screen. Leave comments on anything you'd like changed. Your written approval here is what starts the build.",
+    handoverNote:
+      "Share the Figma prototype link and ask for explicit written approval. Do not start Phase 2 without it — this boundary protects both you and the client.",
+    clientGuidance:
+      "Here's the design for your app. Click through the prototype below — try every screen. Leave comments on anything you'd like changed. Your written approval here is what starts the build.",
   },
   {
     n: 2,
@@ -420,8 +444,10 @@ export const APP_PHASES: Phase[] = [
     tip: "Build mobile-first from day one. Retrofitting responsive design is painful. Use Tailwind's responsive prefixes on every layout element.",
     adminArtifactHint: "e.g. Vercel staging link, component library preview, screenshot walkthrough",
     clientArtifactHint: "e.g. Design feedback notes, copy / content for specific pages",
-    handoverNote: "Share the staging link and ask the client to review on both desktop and mobile. Collect all visual feedback before connecting real data in Phase 3.",
-    clientGuidance: "Your app is taking shape! Click the staging link below on your phone and your computer. Note anything that doesn't look or feel right — we'll fix it before connecting real data.",
+    handoverNote:
+      "Share the staging link and ask the client to review on both desktop and mobile. Collect all visual feedback before connecting real data in Phase 3.",
+    clientGuidance:
+      "Your app is taking shape! Click the staging link below on your phone and your computer. Note anything that doesn't look or feel right — we'll fix it before connecting real data.",
   },
   {
     n: 3,
@@ -440,7 +466,8 @@ export const APP_PHASES: Phase[] = [
       { text: "Connect frontend to real API" },
       {
         text: "Client tests core flows with real data",
-        clientText: "Try signing up and using the main features with real data — report anything that doesn't work as expected",
+        clientText:
+          "Try signing up and using the main features with real data — report anything that doesn't work as expected",
         clientOwned: true,
       },
     ],
@@ -448,8 +475,10 @@ export const APP_PHASES: Phase[] = [
     tip: "Auth is the most common source of scope creep. Define the full auth model (roles, permissions, session expiry) before starting this phase.",
     adminArtifactHint: "e.g. Updated staging link with real data, database schema diagram, API reference",
     clientArtifactHint: "e.g. Test account credentials, Stripe test card numbers, bug report from testing",
-    handoverNote: "Share the updated staging link with real data. Walk the client through the sign-up flow and core actions. Log all bugs before moving to QA.",
-    clientGuidance: "Your app is now connected to real data. Try signing up, completing the core flow, and using the main features. Report anything unexpected below — this is the best time to catch issues.",
+    handoverNote:
+      "Share the updated staging link with real data. Walk the client through the sign-up flow and core actions. Log all bugs before moving to QA.",
+    clientGuidance:
+      "Your app is now connected to real data. Try signing up, completing the core flow, and using the main features. Report anything unexpected below — this is the best time to catch issues.",
   },
   {
     n: 4,
@@ -467,7 +496,8 @@ export const APP_PHASES: Phase[] = [
       { text: "Fix all critical and major bugs" },
       {
         text: "Client completes user acceptance testing (UAT) — every feature end-to-end",
-        clientText: "Test every feature in the app as if you were a real user — follow the checklist and report any bugs",
+        clientText:
+          "Test every feature in the app as if you were a real user — follow the checklist and report any bugs",
         clientOwned: true,
       },
       {
@@ -480,8 +510,10 @@ export const APP_PHASES: Phase[] = [
     tip: "Ask the client to do UAT on their own device without guidance. If they can't figure out how to use it, that's a UX bug, not user error.",
     adminArtifactHint: "e.g. QA checklist results, bug report, Lighthouse audit screenshot",
     clientArtifactHint: "e.g. UAT bug report, screen recordings of issues, written sign-off",
-    handoverNote: "Share the QA staging link and a simple test script covering all main flows. Require written sign-off from the client before you deploy to production.",
-    clientGuidance: "It's your turn to test! Work through the app as if you were a real user. Report any bugs, confusing flows, or missing features below. Your sign-off here means we're cleared to launch.",
+    handoverNote:
+      "Share the QA staging link and a simple test script covering all main flows. Require written sign-off from the client before you deploy to production.",
+    clientGuidance:
+      "It's your turn to test! Work through the app as if you were a real user. Report any bugs, confusing flows, or missing features below. Your sign-off here means we're cleared to launch.",
   },
   {
     n: 5,
@@ -508,7 +540,8 @@ export const APP_PHASES: Phase[] = [
     tip: "Sentry + Better Uptime is a 15-minute setup that will save hours of blind debugging. Set them up before marking this phase done.",
     adminArtifactHint: "e.g. Production URL, Loom walkthrough, handoff doc, GitHub repo invite",
     clientArtifactHint: "e.g. Domain registrar details, DNS access credentials",
-    handoverNote: "Share the production URL, Loom walkthrough, handoff doc, and repo access. Confirm the client has all credentials before marking this complete.",
+    handoverNote:
+      "Share the production URL, Loom walkthrough, handoff doc, and repo access. Confirm the client has all credentials before marking this complete.",
     clientGuidance: "Connect your domain using the instructions below and your app goes live. Congratulations!",
   },
   {
@@ -530,8 +563,10 @@ export const APP_PHASES: Phase[] = [
     tip: "Keep a shared backlog in Notion or Linear. Getting client sign-off on priorities before each sprint eliminates scope disputes mid-month.",
     adminArtifactHint: "e.g. Monthly sprint summary, changelog, performance report, backlog link",
     clientArtifactHint: "e.g. Feature requests, bug reports, updated copy or design assets",
-    handoverNote: "Send the monthly sprint summary and flag upcoming planned items. Review and reprioritise the backlog together each month.",
-    clientGuidance: "Share feature requests, bugs, or anything you'd like improved below. We review and prioritise your backlog at the start of each month.",
+    handoverNote:
+      "Send the monthly sprint summary and flag upcoming planned items. Review and reprioritise the backlog together each month.",
+    clientGuidance:
+      "Share feature requests, bugs, or anything you'd like improved below. We review and prioritise your backlog at the start of each month.",
   },
 ];
 
@@ -539,7 +574,7 @@ export const APP_PHASES: Phase[] = [
 
 export function getPhases(type: ProjectType): Phase[] {
   if (type === "shop") return SHOP_PHASES;
-  if (type === "app") return APP_PHASES;
+  // if (type === "app") return APP_PHASES;
   return WEBSITE_PHASES;
 }
 
@@ -552,39 +587,39 @@ export const PHASES = WEBSITE_PHASES;
 export const TOTAL_STEPS = getTotalSteps("website");
 
 export const TOOL_URLS: Record<string, string> = {
-  "Notion": "https://notion.so",
-  "Loom": "https://loom.com",
+  Notion: "https://notion.so",
+  Loom: "https://loom.com",
   "Google Meet": "https://meet.google.com",
-  "FigJam": "https://www.figma.com/figjam",
-  "Figma": "https://figma.com",
+  FigJam: "https://www.figma.com/figjam",
+  Figma: "https://figma.com",
   "v0 by Vercel": "https://v0.dev",
-  "Looka": "https://looka.com",
-  "Brandmark": "https://brandmark.io",
-  "Midjourney": "https://midjourney.com",
-  "Ideogram": "https://ideogram.ai",
+  Looka: "https://looka.com",
+  Brandmark: "https://brandmark.io",
+  Midjourney: "https://midjourney.com",
+  Ideogram: "https://ideogram.ai",
   "Next.js": "https://nextjs.org",
-  "Tailwind": "https://tailwindcss.com",
+  Tailwind: "https://tailwindcss.com",
   "shadcn/ui": "https://ui.shadcn.com",
-  "Sanity": "https://sanity.io",
-  "Vercel": "https://vercel.com",
+  Sanity: "https://sanity.io",
+  Vercel: "https://vercel.com",
   "Claude Code": "https://claude.ai/code",
-  "Resend": "https://resend.com",
-  "Shopify": "https://shopify.com",
-  "WooCommerce": "https://woocommerce.com",
-  "Stripe": "https://stripe.com",
-  "PayPal": "https://paypal.com",
-  "Klaviyo": "https://klaviyo.com",
-  "Cookiebot": "https://cookiebot.com",
+  Resend: "https://resend.com",
+  Shopify: "https://shopify.com",
+  WooCommerce: "https://woocommerce.com",
+  Stripe: "https://stripe.com",
+  PayPal: "https://paypal.com",
+  Klaviyo: "https://klaviyo.com",
+  Cookiebot: "https://cookiebot.com",
   "Trusted Shops": "https://trustedshops.de",
-  "Cloudflare": "https://cloudflare.com",
-  "Supabase": "https://supabase.com",
-  "Railway": "https://railway.app",
-  "Clerk": "https://clerk.com",
-  "Drizzle": "https://orm.drizzle.team",
-  "Playwright": "https://playwright.dev",
-  "Sentry": "https://sentry.io",
-  "Linear": "https://linear.app",
-  "GitHub": "https://github.com",
+  Cloudflare: "https://cloudflare.com",
+  Supabase: "https://supabase.com",
+  Railway: "https://railway.app",
+  Clerk: "https://clerk.com",
+  Drizzle: "https://orm.drizzle.team",
+  Playwright: "https://playwright.dev",
+  Sentry: "https://sentry.io",
+  Linear: "https://linear.app",
+  GitHub: "https://github.com",
   "Google Search Console": "https://search.google.com/search-console",
   "Google Analytics 4": "https://analytics.google.com",
   "Vercel Analytics": "https://vercel.com/analytics",
@@ -596,5 +631,5 @@ export const TOOL_URLS: Record<string, string> = {
 export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
   website: "Website",
   shop: "Shop",
-  app: "App",
+  // app: "App",
 };

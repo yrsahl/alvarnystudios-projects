@@ -1,17 +1,17 @@
+import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useFetcher } from "react-router";
-import { X } from "lucide-react";
 import { Input } from "~/components/ui/input";
-import { cn } from "~/lib/utils";
 import type { ProjectType } from "~/lib/phases";
 import { PROJECT_TYPE_LABELS } from "~/lib/phases";
+import { cn } from "~/lib/utils";
 
 interface NewLeadModalProps {
   open: boolean;
   onClose: () => void;
 }
 
-const TYPES: ProjectType[] = ["website", "shop", "app"];
+const TYPES: ProjectType[] = ["website", "shop"];
 
 export function NewLeadModal({ open, onClose }: NewLeadModalProps) {
   const fetcher = useFetcher<{ ok: boolean } | { error: string }>();
@@ -71,9 +71,7 @@ export function NewLeadModal({ open, onClose }: NewLeadModalProps) {
 
           {/* Project type */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Project Type
-            </label>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Project Type</label>
             <div className="flex gap-1.5">
               {TYPES.map((t) => (
                 <button
@@ -119,9 +117,7 @@ export function NewLeadModal({ open, onClose }: NewLeadModalProps) {
 
           {/* Notes */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Notes
-            </label>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</label>
             <textarea
               name="notes"
               placeholder="How they found you, what they need, rough budget…"
