@@ -13,6 +13,7 @@ export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
+  type: text("type").notNull().default("website"), // "website" | "shop" | "app"
   clientName: text("client_name").notNull().default(""),
   businessName: text("business_name").notNull().default(""),
   startDate: date("start_date"),
@@ -94,6 +95,21 @@ export const phaseNotes = pgTable(
     uniqueIndex("phase_notes_project_phase_idx").on(t.projectId, t.phaseNumber),
   ],
 );
+
+export const leads = pgTable("leads", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  businessName: text("business_name").notNull().default(""),
+  email: text("email").notNull().default(""),
+  phone: text("phone").notNull().default(""),
+  projectType: text("project_type").notNull().default("website"),
+  notes: text("notes").notNull().default(""),
+  source: text("source").notNull().default("admin"), // "admin" | "form"
+  status: text("status").notNull().default("new"), // "new" | "contacted" | "proposal" | "converted" | "lost"
+  convertedProjectId: uuid("converted_project_id").references(() => projects.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const phaseArtifacts = pgTable("phase_artifacts", {
   id: uuid("id").defaultRandom().primaryKey(),

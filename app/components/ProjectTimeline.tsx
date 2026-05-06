@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PHASES } from "~/lib/phases";
+import { getPhases, type ProjectType } from "~/lib/phases";
 import { PhaseCard } from "./PhaseCard";
 import { ClientInfoCard } from "./ClientInfoCard";
 import type { BriefData } from "./ProjectBriefPanel";
@@ -13,6 +13,7 @@ interface Props {
     businessName: string;
     startDate: string | null;
   };
+  projectType: ProjectType;
   brand: BrandData;
   brief: BriefData;
   isAdmin: boolean;
@@ -24,6 +25,7 @@ interface Props {
 
 export function ProjectTimeline({
   project,
+  projectType,
   brand,
   brief,
   isAdmin,
@@ -34,14 +36,16 @@ export function ProjectTimeline({
 }: Props) {
   const [stepsByPhase, setStepsByPhase] = useState(initialStepsByPhase);
 
-  const visiblePhases = isAdmin ? PHASES : PHASES.filter((p) => p.n > 0);
+  const allPhases = getPhases(projectType);
+  const visiblePhases = isAdmin ? allPhases : allPhases.filter((p) => p.n > 0);
+
   const completedSteps = visiblePhases.reduce(
     (sum, phase) => sum + (stepsByPhase[phase.n] ?? []).filter(Boolean).length,
     0,
   );
   const totalSteps = visiblePhases.reduce((sum, phase) => sum + phase.steps.length, 0);
 
-  // For client view: auto-open the first phase that has incomplete client tasks
+  // Auto-open the first phase that has incomplete client tasks
   const clientActivePhaseN = isAdmin
     ? null
     : visiblePhases.find((phase) =>
@@ -49,6 +53,9 @@ export function ProjectTimeline({
           (step, i) => step.clientOwned && !(stepsByPhase[phase.n]?.[i] ?? false),
         ),
       )?.n ?? null;
+
+  // Derive spine gradient from phase colors
+  const spineGradient = allPhases.map((p) => p.color).join(", ");
 
   function handleStepToggle(phaseNumber: number, stepIndex: number, checked: boolean) {
     setStepsByPhase((prev) => ({
@@ -68,12 +75,9 @@ export function ProjectTimeline({
       />
 
       <div className="relative">
-        {/* Vertical spine */}
         <div
           className="absolute left-5 top-0 bottom-0 w-px opacity-20 pointer-events-none"
-          style={{
-            background: "linear-gradient(to bottom, #5B8CFF, #A78BFA, #34D399, #60C8B0, #FBBF24, #FB923C)",
-          }}
+          style={{ background: `linear-gradient(to bottom, ${spineGradient})` }}
         />
 
         {visiblePhases.map((phase) => (

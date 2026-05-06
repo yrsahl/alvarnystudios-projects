@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { cn } from "~/lib/utils";
-import type { Phase } from "~/lib/phases";
-import { TOTAL_STEPS } from "~/lib/phases";
+import type { Phase, ProjectType } from "~/lib/phases";
+
+const TYPE_LABELS: Record<ProjectType, string> = {
+  website: "Web",
+  shop: "Shop",
+  app: "App",
+};
 
 interface ProjectCardProps {
   slug: string;
@@ -10,8 +15,10 @@ interface ProjectCardProps {
   clientName: string;
   businessName: string;
   startDate: string | null;
+  type: ProjectType;
   currentPhase: Phase;
   completedSteps: number;
+  totalSteps: number;
   siteUrl?: string | null;
   isNew?: boolean;
 }
@@ -41,13 +48,15 @@ export function ProjectCard({
   clientName,
   businessName,
   startDate,
+  type,
   currentPhase,
   completedSteps,
+  totalSteps,
   siteUrl,
   isNew,
 }: ProjectCardProps) {
-  const [shouldAnimate] = useState(() => isNew); // frozen on mount — prevents re-renders from replaying the animation
-  const pct = Math.round((completedSteps / TOTAL_STEPS) * 100);
+  const [shouldAnimate] = useState(() => isNew);
+  const pct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
   const subtitle = [clientName, businessName].filter(Boolean).join(" · ");
   const screenshotSrc = useScreenshot(siteUrl);
 
@@ -63,7 +72,6 @@ export function ProjectCard({
       )}
       style={{ borderColor: `${currentPhase.color}60` }}
     >
-      {/* Screenshot background */}
       {screenshotSrc && (
         <>
           <img
@@ -78,14 +86,12 @@ export function ProjectCard({
         </>
       )}
 
-      {/* Stretched link — sits behind all content */}
       <Link
         to={`/project/${slug}`}
         className="absolute inset-0 z-0 rounded-xl"
         aria-label={`Open ${name}`}
       />
 
-      {/* Name + phase badge — pointer-events-none so clicks fall through to the link */}
       <div className="relative z-10 flex items-start justify-between gap-2 pointer-events-none min-w-0">
         <div className="min-w-0">
           <h3 className="font-medium text-card-foreground leading-snug truncate">{name}</h3>
@@ -93,26 +99,32 @@ export function ProjectCard({
             <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>
           )}
         </div>
-        <span
-          className="shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap max-w-36 truncate"
-          style={{
-            color: currentPhase.color,
-            borderColor: `${currentPhase.color}50`,
-            backgroundColor: `${currentPhase.color}18`,
-          }}
-        >
-          {currentPhase.title}
-        </span>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span
+            className="text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap"
+            style={{
+              color: currentPhase.color,
+              borderColor: `${currentPhase.color}50`,
+              backgroundColor: `${currentPhase.color}18`,
+            }}
+          >
+            {currentPhase.title}
+          </span>
+          <span className="text-[10px] text-muted-foreground/70 font-medium uppercase tracking-wider">
+            {TYPE_LABELS[type]}
+          </span>
+        </div>
       </div>
 
-      {/* Progress + bottom actions */}
       <div className="relative z-10 pointer-events-none">
-        {/* Progress bar */}
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-muted-foreground">{startDate ?? ""}</span>
-            <span className="text-xs font-semibold tabular-nums" style={{ color: pct === 100 ? "#34d399" : currentPhase.color }}>
-              {completedSteps}/{TOTAL_STEPS}
+            <span
+              className="text-xs font-semibold tabular-nums"
+              style={{ color: pct === 100 ? "#34d399" : currentPhase.color }}
+            >
+              {completedSteps}/{totalSteps}
             </span>
           </div>
           <div className="h-1 rounded-full bg-muted overflow-hidden">
@@ -123,7 +135,6 @@ export function ProjectCard({
           </div>
         </div>
 
-        {/* Actions row — visible on hover; re-enable pointer events only on the button */}
         <div className="flex items-center justify-between opacity-0 transition-opacity group-hover:opacity-100">
           <code className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded font-mono tracking-wider">
             {slug}

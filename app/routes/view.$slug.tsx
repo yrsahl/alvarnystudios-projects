@@ -3,7 +3,7 @@ import { ThemeToggle } from "~/components/ThemeToggle";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
 import { db } from "~/db/index.server";
 import { brandValues, phaseArtifacts, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
-import { PHASES } from "~/lib/phases";
+import { getPhases, type ProjectType } from "~/lib/phases";
 import type { Route } from "./+types/view.$slug";
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -17,6 +17,9 @@ export async function loader({ params }: Route.LoaderArgs) {
   });
   if (!project) throw new Response("Project not found", { status: 404 });
 
+  const projectType = (project.type ?? "website") as ProjectType;
+  const phases = getPhases(projectType);
+
   const [brand, briefRecord, stepRecords, noteRecords, artifactRecords] = await Promise.all([
     db.query.brandValues.findFirst({ where: eq(brandValues.projectId, project.id) }),
     db.query.projectBrief.findFirst({ where: eq(projectBrief.projectId, project.id) }),
@@ -26,21 +29,21 @@ export async function loader({ params }: Route.LoaderArgs) {
   ]);
 
   const stepsByPhase: Record<number, boolean[]> = {};
-  for (const phase of PHASES) {
-    stepsByPhase[phase.n] = phase.steps.map((_, i) => {
+  for (const phase of phases) {
+    stepsByPhase[phase.n] = phase.steps.map((_step, i) => {
       const rec = stepRecords.find((r) => r.phaseNumber === phase.n && r.stepIndex === i);
       return rec?.completed ?? false;
     });
   }
 
   const clientNotesByPhase: Record<number, string> = {};
-  for (const phase of PHASES) {
+  for (const phase of phases) {
     const rec = noteRecords.find((r) => r.phaseNumber === phase.n);
     clientNotesByPhase[phase.n] = rec?.clientNotes ?? "";
   }
 
   const artifactsByPhase: Record<number, { id: string; from: "admin" | "client"; label: string; url: string; createdAt: string }[]> = {};
-  for (const phase of PHASES) {
+  for (const phase of phases) {
     artifactsByPhase[phase.n] = artifactRecords
       .filter((a) => a.phaseNumber === phase.n)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
@@ -54,6 +57,7 @@ export async function loader({ params }: Route.LoaderArgs) {
   }
 
   return {
+    projectType,
     project: {
       id: project.id,
       slug: project.slug,
@@ -101,7 +105,8 @@ export async function action({ request, params }: Route.ActionArgs) {
     const stepIndex = Number(formData.get("stepIndex"));
     const completed = formData.get("completed") === "true";
 
-    const phase = PHASES.find((p) => p.n === phaseNumber);
+    const projectType = (project.type ?? "website") as ProjectType;
+    const phase = getPhases(projectType).find((p) => p.n === phaseNumber);
     const step = phase?.steps[stepIndex];
     if (!step?.clientOwned) throw new Response("Forbidden", { status: 403 });
 
@@ -162,7 +167,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export default function ClientProjectView({ loaderData }: Route.ComponentProps) {
-  const { project, brand, brief, stepsByPhase, adminNotesByPhase, clientNotesByPhase, artifactsByPhase } = loaderData;
+  const { project, projectType, brand, brief, stepsByPhase, adminNotesByPhase, clientNotesByPhase, artifactsByPhase } = loaderData;
   const displayName = project.businessName || project.name;
 
   return (
@@ -184,6 +189,7 @@ export default function ClientProjectView({ loaderData }: Route.ComponentProps) 
       <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto w-full">
         <ProjectTimeline
           project={project}
+          projectType={projectType}
           brand={brand}
           brief={brief}
           isAdmin={false}

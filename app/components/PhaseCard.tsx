@@ -35,7 +35,18 @@ interface Props {
 const textareaClass =
   "w-full bg-background border border-input rounded-md px-3 py-2.5 text-sm text-foreground leading-relaxed placeholder:text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y transition-colors";
 
-export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClientNotes, isAdmin, initialOpen, artifacts, brand, brief, onStepToggle }: Props) {
+export function PhaseCard({
+  phase,
+  checkedSteps,
+  initialAdminNotes,
+  initialClientNotes,
+  isAdmin,
+  initialOpen,
+  artifacts,
+  brand,
+  brief,
+  onStepToggle,
+}: Props) {
   const { slug } = useParams();
   const [open, setOpen] = useState(initialOpen ?? phase.n === 0);
   const [adminNotes, setAdminNotes] = useState(initialAdminNotes);
@@ -78,6 +89,13 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
   const pct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const allDone = completedCount === totalCount;
 
+  const clientSteps = phase.steps
+    .map((step, i) => ({ step, i }))
+    .filter(({ step }) => step.clientOwned);
+  const hasClientTasks = clientSteps.length > 0;
+  const pendingClientTasks = clientSteps.filter(({ i }) => !(checkedSteps[i] ?? false));
+  const hasAdminArtifacts = artifacts.some((a) => a.from === "admin");
+
   function handleAdminNotesChange(value: string) {
     setAdminNotes(value);
     clearTimeout(adminDebounceRef.current);
@@ -100,11 +118,6 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
       );
     }, 1000);
   }
-
-  const clientSteps = phase.steps
-    .map((step, i) => ({ step, i }))
-    .filter(({ step }) => step.clientOwned);
-  const hasClientTasks = clientSteps.length > 0;
 
   return (
     <div className="grid mb-2" style={{ gridTemplateColumns: "40px 1fr", gap: "0 16px" }}>
@@ -136,8 +149,17 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
         <button onClick={() => setOpen((o) => !o)} className="w-full px-5 pt-4 pb-0 text-left cursor-pointer">
           <div className="flex items-center justify-between gap-4 pb-3">
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-foreground">
-                {isAdmin ? phase.title : (phase.clientTitle ?? phase.title)}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-foreground">
+                  {isAdmin ? phase.title : (phase.clientTitle ?? phase.title)}
+                </span>
+                {/* Client: show "action needed" dot when there are pending tasks */}
+                {!isAdmin && pendingClientTasks.length > 0 && (
+                  <span
+                    className="shrink-0 h-1.5 w-1.5 rounded-full animate-pulse"
+                    style={{ backgroundColor: phase.color }}
+                  />
+                )}
               </div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 {isAdmin ? phase.sub : (phase.clientSub ?? phase.sub)}
@@ -178,61 +200,48 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
 
         {/* Expandable body */}
         {open && (
-          <div className="border-t border-border p-5 bg-secondary/40">
+          <div className="border-t border-border p-5 bg-secondary/40 space-y-5">
 
-            {/* Client view: notes → artifacts → tasks */}
-            {!isAdmin && phase.n !== 0 && (
-              <div className="mb-5 space-y-5">
-                <div>
-                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                    Notes
-                  </h4>
-                  <textarea
-                    ref={textareaRef}
-                    value={clientNotes}
-                    onChange={(e) => handleClientNotesChange(e.target.value)}
-                    placeholder="Leave notes or questions for your designer here…"
-                    rows={3}
-                    className={textareaClass}
+            {/* ── CLIENT VIEW ── */}
+            {!isAdmin && (
+              <>
+                {/* Client guidance banner */}
+                {phase.clientGuidance && (
+                  <div
+                    className="flex gap-2.5 rounded-lg px-3.5 py-3 text-sm leading-relaxed border"
+                    style={{
+                      backgroundColor: `${phase.color}0f`,
+                      borderColor: `${phase.color}30`,
+                      color: "var(--foreground)",
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 mt-0.5" style={{ color: phase.color }}>
+                      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                    </svg>
+                    <span>{phase.clientGuidance}</span>
+                  </div>
+                )}
+
+                {/* From your team (artifacts) */}
+                {hasAdminArtifacts && (
+                  <PhaseArtifacts
+                    phaseNumber={phase.n}
+                    artifacts={artifacts}
+                    isAdmin={false}
+                    color={phase.color}
+                    adminHint={phase.adminArtifactHint}
+                    clientHint={phase.clientArtifactHint}
+                    showOnlyAdmin
                   />
-                </div>
-                <PhaseArtifacts
-                  phaseNumber={phase.n}
-                  artifacts={artifacts}
-                  isAdmin={false}
-                  color={phase.color}
-                  adminHint={phase.adminArtifactHint}
-                  clientHint={phase.clientArtifactHint}
-                />
-              </div>
-            )}
+                )}
 
-            <div className={`grid gap-5 ${isAdmin ? "grid-cols-1 xl:grid-cols-2" : "grid-cols-1"}`}>
-              {/* Steps */}
-              <div>
-                {isAdmin ? (
-                  <>
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                      Steps
-                    </h4>
-                    <ul>
-                      {phase.steps.map((step, i) => (
-                        <StepItem
-                          key={i}
-                          text={step.text}
-                          index={i}
-                          phaseNumber={phase.n}
-                          checked={checkedSteps[i] ?? false}
-                          color={phase.color}
-                          clientOwned={step.clientOwned ?? false}
-                          isAdmin={isAdmin}
-                          onToggle={(idx, val) => onStepToggle(phase.n, idx, val)}
-                        />
-                      ))}
-                    </ul>
-                  </>
-                ) : hasClientTasks ? (
-                  <>
+                {/* Brief panel for phase 0 (if client ever sees it) */}
+                {phase.n === 0 && brief && <ProjectBriefPanel brief={brief} isAdmin={false} />}
+
+                {/* Your tasks */}
+                {hasClientTasks ? (
+                  <div>
                     <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
                       Your tasks
                     </h4>
@@ -251,11 +260,9 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
                         />
                       ))}
                     </ul>
-                  </>
+                  </div>
                 ) : (
-                  <div
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-muted border border-border text-xs text-muted-foreground"
-                  >
+                  <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-muted border border-border text-xs text-muted-foreground">
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
                       <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.2" />
                       <path d="M4.5 7.5l2 2 3-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -263,87 +270,151 @@ export function PhaseCard({ phase, checkedSteps, initialAdminNotes, initialClien
                     Your team is handling this phase — no action needed from you.
                   </div>
                 )}
-              </div>
 
-              {/* Tools + Key Insight — admin only */}
-              {isAdmin && (
-                <div>
-                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                    Tools
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5 mb-5">
-                    {phase.tools.map((tool) => (
-                      <a
-                        key={tool}
-                        href={TOOL_URLS[tool]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-medium px-2.5 py-1 rounded-md bg-muted border border-border text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        {tool}
-                      </a>
-                    ))}
+                {/* Share with team + notes */}
+                {phase.n !== 0 && (
+                  <div className="space-y-4">
+                    <PhaseArtifacts
+                      phaseNumber={phase.n}
+                      artifacts={artifacts}
+                      isAdmin={false}
+                      color={phase.color}
+                      adminHint={phase.adminArtifactHint}
+                      clientHint={phase.clientArtifactHint}
+                      showOnlyClient
+                    />
+                    <div>
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                        Notes & questions
+                      </h4>
+                      <textarea
+                        ref={textareaRef}
+                        value={clientNotes}
+                        onChange={(e) => handleClientNotesChange(e.target.value)}
+                        placeholder="Leave notes or questions for your designer here…"
+                        rows={3}
+                        className={textareaClass}
+                      />
+                    </div>
                   </div>
-                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                    Key Insight
-                  </h4>
-                  <div
-                    className="p-3 rounded-lg text-xs text-muted-foreground leading-relaxed border-l-2 bg-muted"
-                    style={{ borderLeftColor: phase.color }}
-                  >
-                    {phase.tip}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {phase.n === 0 && brief && <ProjectBriefPanel brief={brief} isAdmin={isAdmin} />}
-            {phase.n === 1 && brand && <BrandValuesPanel brand={brand} />}
-
-            {/* Artifact exchange — admin view */}
-            {isAdmin && (
-              <PhaseArtifacts
-                phaseNumber={phase.n}
-                artifacts={artifacts}
-                isAdmin={true}
-                color={phase.color}
-                adminHint={phase.adminArtifactHint}
-                clientHint={phase.clientArtifactHint}
-              />
+                )}
+              </>
             )}
 
-            {/* Admin notes + shared notes (admin view) */}
+            {/* ── ADMIN VIEW ── */}
             {isAdmin && (
-              <div className="mt-5 pt-5 border-t border-border space-y-4">
-                <div>
-                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                    Admin Notes
-                  </h4>
-                  <textarea
-                    value={adminNotes}
-                    onChange={(e) => handleAdminNotesChange(e.target.value)}
-                    placeholder="Internal notes — decisions, follow-ups, observations…"
-                    rows={3}
-                    className={textareaClass}
-                  />
+              <>
+                <div className={`grid gap-5 ${isAdmin ? "grid-cols-1 xl:grid-cols-2" : "grid-cols-1"}`}>
+                  {/* Steps */}
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                      Steps
+                    </h4>
+                    <ul>
+                      {phase.steps.map((step, i) => (
+                        <StepItem
+                          key={i}
+                          text={step.text}
+                          index={i}
+                          phaseNumber={phase.n}
+                          checked={checkedSteps[i] ?? false}
+                          color={phase.color}
+                          clientOwned={step.clientOwned ?? false}
+                          isAdmin={true}
+                          onToggle={(idx, val) => onStepToggle(phase.n, idx, val)}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Tools + Key Insight */}
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                      Tools
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5 mb-5">
+                      {phase.tools.map((tool) => (
+                        <a
+                          key={tool}
+                          href={TOOL_URLS[tool]}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-medium px-2.5 py-1 rounded-md bg-muted border border-border text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          {tool}
+                        </a>
+                      ))}
+                    </div>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                      Key Insight
+                    </h4>
+                    <div
+                      className="p-3 rounded-lg text-xs text-muted-foreground leading-relaxed border-l-2 bg-muted"
+                      style={{ borderLeftColor: phase.color }}
+                    >
+                      {phase.tip}
+                    </div>
+                  </div>
                 </div>
 
-                {phase.n !== 0 && (
+                {/* Special panels */}
+                {phase.n === 0 && brief && <ProjectBriefPanel brief={brief} isAdmin={true} />}
+                {phase.n === 1 && brand && <BrandValuesPanel brand={brand} />}
+
+                {/* Handover callout */}
+                {phase.handoverNote && (
+                  <div className="flex gap-2.5 rounded-lg px-3.5 py-3 text-sm border border-amber-500/25 bg-amber-500/8">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 mt-0.5 text-amber-500">
+                      <path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10 4.5 11.5l.5-3.5L2.5 5.5 6 5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+                    </svg>
+                    <div>
+                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Handover</span>
+                      <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">{phase.handoverNote}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Artifacts */}
+                <PhaseArtifacts
+                  phaseNumber={phase.n}
+                  artifacts={artifacts}
+                  isAdmin={true}
+                  color={phase.color}
+                  adminHint={phase.adminArtifactHint}
+                  clientHint={phase.clientArtifactHint}
+                />
+
+                {/* Admin notes + shared notes */}
+                <div className="pt-5 border-t border-border space-y-4">
                   <div>
                     <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                      Shared Notes
+                      Admin Notes
                     </h4>
                     <textarea
-                      ref={textareaRef}
-                      value={clientNotes}
-                      onChange={(e) => handleClientNotesChange(e.target.value)}
-                      placeholder="Agreed decisions, links, values confirmed with client…"
+                      value={adminNotes}
+                      onChange={(e) => handleAdminNotesChange(e.target.value)}
+                      placeholder="Internal notes — decisions, follow-ups, observations…"
                       rows={3}
                       className={textareaClass}
                     />
                   </div>
-                )}
-              </div>
+                  {phase.n !== 0 && (
+                    <div>
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                        Shared Notes
+                      </h4>
+                      <textarea
+                        ref={textareaRef}
+                        value={clientNotes}
+                        onChange={(e) => handleClientNotesChange(e.target.value)}
+                        placeholder="Agreed decisions, links, values confirmed with client…"
+                        rows={3}
+                        className={textareaClass}
+                      />
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         )}

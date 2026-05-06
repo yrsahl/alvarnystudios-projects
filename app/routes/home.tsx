@@ -1,15 +1,23 @@
 import { desc, eq } from "drizzle-orm";
-import { Globe, LayoutDashboard, Plus, Search } from "lucide-react";
+import { LayoutDashboard, Plus, Search, UserPlus } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useMemo, useState } from "react";
 import { Form, redirect } from "react-router";
+import { LeadCard, type Lead } from "~/components/LeadCard";
+import { NewLeadModal } from "~/components/NewLeadModal";
 import { NewProjectModal } from "~/components/NewProjectModal";
 import { ProjectCard } from "~/components/ProjectCard";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { Input } from "~/components/ui/input";
 import { db } from "~/db/index.server";
-import { brandValues, phaseSteps, projects } from "~/db/schema";
-import { PHASES, TOOL_URLS } from "~/lib/phases";
+import { brandValues, leads as leadsTable, phaseSteps, projects } from "~/db/schema";
+import {
+  getPhases,
+  getTotalSteps,
+  PROJECT_TYPE_LABELS,
+  TOOL_URLS,
+  type ProjectType,
+} from "~/lib/phases";
 import { destroySession, getSession, requireAdmin } from "~/lib/session.server";
 import { cn } from "~/lib/utils";
 import type { Route } from "./+types/home";
@@ -21,22 +29,25 @@ export function meta(_: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   await requireAdmin(request);
 
-  const [allProjects, completedStepRows] = await Promise.all([
+  const [allProjects, completedStepRows, allLeads] = await Promise.all([
     db.select().from(projects).orderBy(desc(projects.createdAt)),
     db
       .select({ projectId: phaseSteps.projectId, phaseNumber: phaseSteps.phaseNumber })
       .from(phaseSteps)
       .where(eq(phaseSteps.completed, true)),
+    db.select().from(leadsTable).orderBy(desc(leadsTable.createdAt)),
   ]);
 
-  const projectsWithPhase = allProjects.map((project) => {
+  const projectsWithMeta = allProjects.map((project) => {
+    const type = (project.type ?? "website") as ProjectType;
+    const phases = getPhases(type);
     const projectSteps = completedStepRows.filter((s) => s.projectId === project.id);
 
     let currentPhaseIndex = 0;
-    for (const phase of PHASES) {
+    for (const phase of phases) {
       const doneInPhase = projectSteps.filter((s) => s.phaseNumber === phase.n).length;
       if (doneInPhase >= phase.steps.length) {
-        currentPhaseIndex = Math.min(phase.n + 1, PHASES.length - 1);
+        currentPhaseIndex = Math.min(phase.n + 1, phases.length - 1);
       } else {
         break;
       }
@@ -46,16 +57,31 @@ export async function loader({ request }: Route.LoaderArgs) {
       id: project.id,
       slug: project.slug,
       name: project.name,
+      type,
       clientName: project.clientName,
       businessName: project.businessName,
       startDate: project.startDate,
       createdAt: project.createdAt.toISOString(),
       currentPhaseIndex,
       completedSteps: projectSteps.length,
+      totalSteps: getTotalSteps(type),
     };
   });
 
-  return { projects: projectsWithPhase };
+  const leadsData: Lead[] = allLeads.map((l) => ({
+    id: l.id,
+    name: l.name,
+    businessName: l.businessName,
+    email: l.email,
+    phone: l.phone,
+    projectType: (l.projectType ?? "website") as ProjectType,
+    notes: l.notes,
+    status: l.status as Lead["status"],
+    convertedProjectId: l.convertedProjectId ?? null,
+    createdAt: l.createdAt.toISOString(),
+  }));
+
+  return { projects: projectsWithMeta, leads: leadsData };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -72,22 +98,72 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (intent === "create") {
     const name = String(formData.get("name") ?? "").trim();
+    const type = String(formData.get("type") ?? "website");
     const clientName = String(formData.get("clientName") ?? "").trim();
     const businessName = String(formData.get("businessName") ?? "").trim();
     if (!name) return { error: "Project name is required." };
     const slug = nanoid(8).toLowerCase();
-    const [project] = await db.insert(projects).values({ slug, name, clientName, businessName }).returning();
+    const [project] = await db
+      .insert(projects)
+      .values({ slug, name, type, clientName, businessName })
+      .returning();
     await db.insert(brandValues).values({ projectId: project.id });
     return { ok: true, slug };
+  }
+
+  if (intent === "create-lead") {
+    const name = String(formData.get("name") ?? "").trim();
+    if (!name) return { error: "Contact name is required." };
+    await db.insert(leadsTable).values({
+      name,
+      businessName: String(formData.get("businessName") ?? "").trim(),
+      email: String(formData.get("email") ?? "").trim(),
+      phone: String(formData.get("phone") ?? "").trim(),
+      projectType: String(formData.get("projectType") ?? "website"),
+      notes: String(formData.get("notes") ?? "").trim(),
+      source: "admin",
+    });
+    return { ok: true };
+  }
+
+  if (intent === "update-lead-status") {
+    const leadId = String(formData.get("leadId"));
+    const status = String(formData.get("status"));
+    await db
+      .update(leadsTable)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(leadsTable.id, leadId));
+    return { ok: true };
+  }
+
+  if (intent === "convert-lead") {
+    const leadId = String(formData.get("leadId"));
+    const lead = await db.query.leads.findFirst({ where: eq(leadsTable.id, leadId) });
+    if (!lead) return { error: "Lead not found." };
+    const slug = nanoid(8).toLowerCase();
+    const name = [lead.businessName || lead.name, PROJECT_TYPE_LABELS[lead.projectType as ProjectType]].filter(Boolean).join(" ");
+    const [project] = await db
+      .insert(projects)
+      .values({ slug, name, type: lead.projectType, clientName: lead.name, businessName: lead.businessName })
+      .returning();
+    await db.insert(brandValues).values({ projectId: project.id });
+    await db
+      .update(leadsTable)
+      .set({ status: "converted", convertedProjectId: project.id, updatedAt: new Date() })
+      .where(eq(leadsTable.id, leadId));
+    return redirect(`/project/${slug}`);
+  }
+
+  if (intent === "delete-lead") {
+    const leadId = String(formData.get("leadId"));
+    await db.delete(leadsTable).where(eq(leadsTable.id, leadId));
+    return { ok: true };
   }
 
   return null;
 }
 
-// Short labels so the chart legend never overflows
-const PHASE_SHORT = ["Discovery", "Brand", "Dev", "SEO", "Launch", "Retainer"] as const;
-
-// ── Phase distribution chart ────────────────────────────────────────────────
+// ── Chart ──────────────────────────────────────────────────────────────────
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -101,13 +177,17 @@ function slicePath(cx: number, cy: number, r: number, start: number, end: number
   return `M ${cx} ${cy} L ${s.x} ${s.y} A ${r} ${r} 0 ${large} 0 ${e.x} ${e.y} Z`;
 }
 
-function PhaseChart({ phaseCounts }: { phaseCounts: { phase: (typeof PHASES)[0]; count: number }[] }) {
-  const total = phaseCounts.reduce((s, { count }) => s + count, 0);
-  const cx = 60;
-  const cy = 60;
-  const r = 52;
+type ProjectWithMeta = Awaited<ReturnType<typeof loader>>["projects"][number];
 
-  const slices: { phase: (typeof PHASES)[0]; count: number; startAngle: number; endAngle: number }[] = [];
+function PhaseChart({ phases, projects }: { phases: ReturnType<typeof getPhases>; projects: ProjectWithMeta[] }) {
+  const cx = 60, cy = 60, r = 52;
+  const phaseCounts = phases.map((phase) => ({
+    phase,
+    count: projects.filter((p) => p.currentPhaseIndex === phase.n).length,
+  }));
+  const total = phaseCounts.reduce((s, { count }) => s + count, 0);
+
+  const slices: { phase: typeof phases[0]; count: number; startAngle: number; endAngle: number }[] = [];
   let cursor = 0;
   for (const { phase, count } of phaseCounts) {
     const sweep = total > 0 ? (count / total) * 360 : 0;
@@ -130,37 +210,15 @@ function PhaseChart({ phaseCounts }: { phaseCounts: { phase: (typeof PHASES)[0];
           )
         )}
         <circle cx={cx} cy={cy} r={32} className="fill-card" />
-        <text
-          x={cx}
-          y={cy}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          className="fill-foreground"
-          style={{ fontSize: 16, fontWeight: 600 }}
-        >
-          {total}
-        </text>
-        <text
-          x={cx}
-          y={cy + 16}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          className="fill-muted-foreground"
-          style={{ fontSize: 10 }}
-        >
-          total
-        </text>
+        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" className="fill-foreground" style={{ fontSize: 16, fontWeight: 600 }}>{total}</text>
+        <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>projects</text>
       </svg>
-
-      {/* Two-column legend so all 6 labels fit comfortably */}
       <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-        {slices.map((s, i) => (
+        {slices.map((s) => (
           <div key={s.phase.n} className="flex items-center gap-2" title={s.phase.title}>
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.phase.color }} />
-            <span className="text-sm text-muted-foreground">{PHASE_SHORT[i]}</span>
-            <span className="ml-auto text-sm font-semibold tabular-nums pl-2" style={{ color: s.phase.color }}>
-              {s.count}
-            </span>
+            <span className="text-sm text-muted-foreground truncate max-w-20">{s.phase.title.split(" ")[0]}</span>
+            <span className="ml-auto text-sm font-semibold tabular-nums pl-2" style={{ color: s.phase.color }}>{s.count}</span>
           </div>
         ))}
       </div>
@@ -168,13 +226,17 @@ function PhaseChart({ phaseCounts }: { phaseCounts: { phase: (typeof PHASES)[0];
   );
 }
 
-// ── Dashboard component ────────────────────────────────────────────────────
+// ── Dashboard ──────────────────────────────────────────────────────────────
+
+const TYPE_ORDER: ProjectType[] = ["website", "shop", "app"];
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { projects } = loaderData;
+  const { projects, leads } = loaderData;
+  const [activeType, setActiveType] = useState<ProjectType>("website");
   const [search, setSearch] = useState("");
-  const [lastClicked, setLastClicked] = useState<number | null>(null);
-  const [showModal, setShowModal] = useState(false);
+  const [lastClicked, setLastClicked] = useState<string | null>(null);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showLeadModal, setShowLeadModal] = useState(false);
   const [newSlug, setNewSlug] = useState<string | null>(null);
 
   const handleCreated = useCallback((slug: string) => {
@@ -182,42 +244,62 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setTimeout(() => setNewSlug(null), 2000);
   }, []);
 
-  const phaseCounts = PHASES.map((phase) => ({
-    phase,
-    count: projects.filter((p) => p.currentPhaseIndex === phase.n).length,
-  }));
+  const phases = useMemo(() => getPhases(activeType), [activeType]);
 
-  // Apply search across all projects, then group by phase — never hide sections entirely
-  const visibleProjects = useMemo(() => {
-    if (!search.trim()) return projects;
+  const filteredProjects = useMemo(() => {
+    const byType = projects.filter((p) => p.type === activeType);
+    if (!search.trim()) return byType;
     const q = search.toLowerCase();
-    return projects.filter(
+    return byType.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.clientName.toLowerCase().includes(q) ||
         p.businessName.toLowerCase().includes(q),
     );
-  }, [projects, search]);
+  }, [projects, activeType, search]);
 
   const phaseGroups = useMemo(
     () =>
-      PHASES.map((phase) => ({
-        phase,
-        projects: visibleProjects.filter((p) => p.currentPhaseIndex === phase.n),
-      })).filter(({ projects }) => projects.length > 0),
-    [visibleProjects],
+      phases
+        .map((phase) => ({ phase, projects: filteredProjects.filter((p) => p.currentPhaseIndex === phase.n) }))
+        .filter(({ projects }) => projects.length > 0),
+    [filteredProjects, phases],
   );
 
-  function scrollTo(id: string, phaseN: number | null) {
-    setLastClicked(phaseN);
+  const phaseCounts = useMemo(
+    () => phases.map((phase) => ({
+      phase,
+      count: projects.filter((p) => p.type === activeType && p.currentPhaseIndex === phase.n).length,
+    })),
+    [projects, phases, activeType],
+  );
+
+  const activeLeads = leads.filter((l) => l.status !== "converted" && l.status !== "lost");
+  const lastPhaseN = phases[phases.length - 1].n;
+  const retainerCount = projects.filter((p) => p.type === activeType && p.currentPhaseIndex === lastPhaseN).length;
+
+  const retainerRange =
+    activeType === "shop" ? `€${retainerCount * 150}–${retainerCount * 400}` :
+    activeType === "app"  ? `€${retainerCount * 200}–${retainerCount * 600}` :
+                            `€${retainerCount * 100}–${retainerCount * 300}`;
+
+  function scrollTo(id: string, key: string) {
+    setLastClicked(key);
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return (
     <>
-      <NewProjectModal open={showModal} onClose={() => setShowModal(false)} onCreated={handleCreated} />
+      <NewProjectModal
+        open={showProjectModal}
+        projectType={activeType}
+        onClose={() => setShowProjectModal(false)}
+        onCreated={handleCreated}
+      />
+      <NewLeadModal open={showLeadModal} onClose={() => setShowLeadModal(false)} />
+
       <div className="flex min-h-screen flex-col">
-        {/* ── Navbar ── */}
+        {/* Navbar */}
         <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 sm:px-6 gap-3">
           <a className="flex items-center gap-2 shrink-0" href="/">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
@@ -234,27 +316,26 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 placeholder="Search projects…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-9 w-full bg-secondary pl-9 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
+                className="h-9 w-full bg-secondary pl-9 text-sm placeholder:text-muted-foreground"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <a
-              href="/view"
-              target="_blank"
-              className="flex items-center gap-1.5 rounded-md px-2 sm:px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              title="Client Portal"
-            >
-              <Globe className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Client Portal</span>
-            </a>
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => setShowLeadModal(true)}
+              className="flex items-center gap-1.5 rounded-md px-2 sm:px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground cursor-pointer"
+              title="Add lead"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Add Lead</span>
+            </button>
+            <button
+              onClick={() => setShowProjectModal(true)}
               className="flex items-center gap-1.5 rounded-md bg-foreground px-2 sm:px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90 cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">New Project</span>
+              <span className="hidden sm:inline">New {PROJECT_TYPE_LABELS[activeType]}</span>
             </button>
             <ThemeToggle />
             <Form method="post">
@@ -267,14 +348,34 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </header>
 
         <div className="flex flex-1">
-          {/* ── Sidebar ── */}
+          {/* Sidebar */}
           <aside className="hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)] w-56 shrink-0 border-r border-border bg-sidebar p-4 overflow-y-auto">
             <nav className="flex flex-col gap-1">
               <button
-                onClick={() => scrollTo("overview", null)}
+                onClick={() => scrollTo("leads", "leads")}
+                className={cn(
+                  "flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  lastClicked === "leads"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Leads
+                </div>
+                {activeLeads.length > 0 && (
+                  <span className="text-xs font-semibold tabular-nums bg-foreground text-background rounded-full px-1.5 py-0.5 min-w-5 text-center">
+                    {activeLeads.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => scrollTo("overview", "overview")}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  lastClicked === null
+                  lastClicked === "overview"
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )}
@@ -287,13 +388,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Phases</span>
               </div>
 
-              {phaseCounts.map(({ phase, count }, i) => (
+              {phaseCounts.map(({ phase, count }) => (
                 <button
                   key={phase.n}
-                  onClick={() => scrollTo(`phase-${phase.n}`, phase.n)}
+                  onClick={() => scrollTo(`phase-${phase.n}`, `phase-${phase.n}`)}
                   className={cn(
                     "flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                    lastClicked === phase.n
+                    lastClicked === `phase-${phase.n}`
                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                       : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
@@ -305,7 +406,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     >
                       {phase.n}
                     </span>
-                    <span className="truncate">{PHASE_SHORT[i]}</span>
+                    <span className="truncate">{phase.title.split(" ")[0]}</span>
                   </div>
                   <span className="text-xs text-muted-foreground shrink-0">{count}</span>
                 </button>
@@ -313,33 +414,64 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </nav>
           </aside>
 
-          {/* ── Main ── */}
+          {/* Main */}
           <main className="flex-1 p-4 sm:p-8 min-w-0">
-            {/* Overview section */}
-            <section id="overview" className="mb-10 scroll-mt-20">
-              <h1 className="mb-6 text-2xl font-semibold text-foreground">Overview</h1>
 
-              {/* Chart + stats side by side */}
+            {/* Leads */}
+            {leads.length > 0 && (
+              <section id="leads" className="mb-10 scroll-mt-20">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-foreground">Leads</h2>
+                  <span className="text-sm text-muted-foreground">{activeLeads.length} active</span>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {leads.map((lead) => (
+                    <LeadCard key={lead.id} lead={lead} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Type filter + overview */}
+            <section id="overview" className="mb-10 scroll-mt-20">
+              <div className="flex items-center gap-1 mb-6 bg-secondary rounded-lg p-1 w-fit">
+                {TYPE_ORDER.map((type) => {
+                  const count = projects.filter((p) => p.type === type).length;
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setActiveType(type)}
+                      className={cn(
+                        "px-4 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer",
+                        activeType === type
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {PROJECT_TYPE_LABELS[type]}
+                      {count > 0 && (
+                        <span className="ml-1.5 text-xs text-muted-foreground tabular-nums">{count}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
               <div className="mb-8 flex flex-col sm:flex-row flex-wrap gap-4 items-start">
                 <div className="rounded-lg border border-border bg-card p-5">
-                  <PhaseChart phaseCounts={phaseCounts} />
+                  <PhaseChart phases={phases} projects={projects.filter((p) => p.type === activeType)} />
                 </div>
 
-                {/* Quick-glance stats */}
                 <div className="grid grid-cols-2 gap-3 flex-1 min-w-48">
                   {[
                     {
                       label: "Active",
-                      value: String(projects.filter((p) => p.currentPhaseIndex < 5).length),
+                      value: String(projects.filter((p) => p.type === activeType && p.currentPhaseIndex < lastPhaseN).length),
                       sub: "in progress",
                     },
-
                     {
-                      label: "Est. retainer",
-                      value: (() => {
-                        const n = projects.filter((p) => p.currentPhaseIndex === 5).length;
-                        return n === 0 ? "€0" : `€${n * 100}–${n * 300}`;
-                      })(),
+                      label: retainerCount === 0 ? "Est. retainer" : "In retainer",
+                      value: retainerCount === 0 ? "€0" : retainerRange,
                       sub: "per month",
                     },
                   ].map((stat) => (
@@ -353,14 +485,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </div>
             </section>
 
-            {/* Projects — one section per phase, always visible */}
+            {/* Projects by phase */}
             {phaseGroups.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <p className="text-lg font-medium text-foreground">
-                  {search ? "No projects match" : "No projects yet"}
+                  {search ? "No projects match" : `No ${PROJECT_TYPE_LABELS[activeType].toLowerCase()} projects yet`}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {search ? "Try a different search term" : 'Click "New Project" to get started'}
+                  {search ? "Try a different search term" : `Click "New ${PROJECT_TYPE_LABELS[activeType]}" to get started`}
                 </p>
               </div>
             ) : (
@@ -377,7 +509,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               href={TOOL_URLS[tool]}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-block rounded-md border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground hover:border-border/80"
+                              className="inline-block rounded-md border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
                             >
                               {tool}
                             </a>
@@ -394,11 +526,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           key={project.id}
                           slug={project.slug}
                           name={project.name}
+                          type={project.type}
                           clientName={project.clientName}
                           businessName={project.businessName}
                           startDate={project.startDate}
-                          currentPhase={PHASES[project.currentPhaseIndex]}
+                          currentPhase={phases[project.currentPhaseIndex]}
                           completedSteps={project.completedSteps}
+                          totalSteps={project.totalSteps}
                           isNew={project.slug === newSlug}
                         />
                       ))}

@@ -5,7 +5,7 @@ import { ThemeToggle } from "~/components/ThemeToggle";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
 import { db } from "~/db/index.server";
 import { brandValues, phaseArtifacts, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
-import { PHASES } from "~/lib/phases";
+import { getPhases, type ProjectType } from "~/lib/phases";
 import { getIsAdmin } from "~/lib/session.server";
 import type { Route } from "./+types/project";
 
@@ -32,9 +32,12 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     db.select().from(phaseArtifacts).where(eq(phaseArtifacts.projectId, project.id)),
   ]);
 
+  const projectType = (project.type ?? "website") as ProjectType;
+  const phases = getPhases(projectType);
+
   const stepsByPhase: Record<number, boolean[]> = {};
-  for (const phase of PHASES) {
-    stepsByPhase[phase.n] = phase.steps.map((_, i) => {
+  for (const phase of phases) {
+    stepsByPhase[phase.n] = phase.steps.map((_step, i) => {
       const rec = stepRecords.find((r) => r.phaseNumber === phase.n && r.stepIndex === i);
       return rec?.completed ?? false;
     });
@@ -42,14 +45,14 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   const adminNotesByPhase: Record<number, string> = {};
   const clientNotesByPhase: Record<number, string> = {};
-  for (const phase of PHASES) {
+  for (const phase of phases) {
     const rec = noteRecords.find((r) => r.phaseNumber === phase.n);
     adminNotesByPhase[phase.n] = rec?.adminNotes ?? "";
     clientNotesByPhase[phase.n] = rec?.clientNotes ?? "";
   }
 
   const artifactsByPhase: Record<number, { id: string; from: "admin" | "client"; label: string; url: string; createdAt: string }[]> = {};
-  for (const phase of PHASES) {
+  for (const phase of phases) {
     artifactsByPhase[phase.n] = artifactRecords
       .filter((a) => a.phaseNumber === phase.n)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
@@ -64,10 +67,12 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   return {
     isAdmin,
+    projectType,
     project: {
       id: project.id,
       slug: project.slug,
       name: project.name,
+      type: projectType,
       clientName: project.clientName,
       businessName: project.businessName,
       startDate: project.startDate,
@@ -210,7 +215,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export default function ProjectPage({ loaderData }: Route.ComponentProps) {
-  const { project, brand, brief, isAdmin, stepsByPhase, adminNotesByPhase, clientNotesByPhase, artifactsByPhase } = loaderData;
+  const { project, projectType, brand, brief, isAdmin, stepsByPhase, adminNotesByPhase, clientNotesByPhase, artifactsByPhase } = loaderData;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -249,6 +254,7 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
       <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto w-full">
         <ProjectTimeline
           project={project}
+          projectType={projectType}
           brand={brand}
           brief={brief}
           isAdmin={isAdmin}
