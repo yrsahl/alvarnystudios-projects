@@ -130,3 +130,24 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 }
+
+/* ── Client portal — override tokens to match alvarnystudios.com ── */
+.client-portal {
+  --background: #fafaf7;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --secondary: #f4f3ee;
+  --secondary-foreground: #1a1a1a;
+  --muted: #f4f3ee;
+  --muted-foreground: #52525b;
+  --border: rgba(26, 26, 26, 0.08);
+  --input: #f4f3ee;
+  --ring: rgba(26, 26, 26, 0.3);
+  --serif: 'Instrument Serif', 'Times New Roman', serif;
+}
+.client-portal body,
+.client-portal {
+  background: #fafaf7;
+  color: #1a1a1a;
+}

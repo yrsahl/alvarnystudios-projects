@@ -13,7 +13,7 @@ export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
-  type: text("type").notNull().default("website"), // "website" | "shop" | "app"
+  type: text("type").notNull().default("website"), // "website" | "shop"
   clientName: text("client_name").notNull().default(""),
   businessName: text("business_name").notNull().default(""),
   startDate: date("start_date"),

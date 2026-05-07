@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import { ThemeToggle } from "~/components/ThemeToggle";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
 import { db } from "~/db/index.server";
 import { brandValues, phaseArtifacts, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
@@ -170,20 +169,55 @@ export default function ClientProjectView({ loaderData }: Route.ComponentProps) 
   const { project, projectType, brand, brief, stepsByPhase, adminNotesByPhase, clientNotesByPhase, artifactsByPhase } = loaderData;
   const displayName = project.businessName || project.name;
 
+  const serif = "'Instrument Serif', 'Times New Roman', serif";
+  const mono  = "'Geist Mono', ui-monospace, monospace";
+  const ink   = "#1a1a1a";
+  const ink3  = "#52525b";
+  const ink4  = "#a1a1aa";
+  const paper = "#fafaf7";
+  const line  = "rgba(26,26,26,0.08)";
+
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Navbar */}
-      <header className="sticky top-0 z-50 flex h-14 items-center gap-3 justify-between border-b border-border bg-background px-4 sm:px-6">
-        <a href="/" className="flex items-center gap-2 shrink-0">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
-            <span className="text-sm font-bold text-background">S</span>
+    <div className="client-portal flex min-h-screen flex-col" style={{ background: paper }}>
+      {/* Marketing-style nav */}
+      <header
+        style={{
+          position: "sticky", top: 0, zIndex: 50,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 24px",
+          background: `color-mix(in oklab, ${paper} 85%, transparent)`,
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderBottom: `1px solid ${line}`,
+        }}
+      >
+        <a
+          href="https://alvarnystudios.com"
+          style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none" }}
+        >
+          <div
+            style={{
+              width: 28, height: 28, borderRadius: 8,
+              background: ink, color: paper,
+              display: "grid", placeItems: "center",
+              fontFamily: serif, fontStyle: "italic", fontSize: 18, lineHeight: 1,
+              paddingBottom: 2,
+            }}
+          >
+            A
           </div>
-          <span className="hidden sm:inline text-sm font-semibold text-foreground">Studio</span>
+          <span style={{ fontFamily: serif, fontSize: 22, color: ink, letterSpacing: "-0.01em" }}>
+            <span style={{ fontStyle: "italic" }}>Alvarny</span>
+            {" "}
+            <span style={{ fontFamily: mono, fontStyle: "normal", fontSize: 11, color: ink3, letterSpacing: "0.05em" }}>
+              STUDIOS
+            </span>
+          </span>
         </a>
 
-        <p className="text-sm font-medium text-foreground truncate min-w-0">{displayName}</p>
-
-        <ThemeToggle />
+        <p style={{ fontFamily: mono, fontSize: 12, color: ink4, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          {displayName}
+        </p>
       </header>
 
       <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto w-full">
@@ -199,6 +233,20 @@ export default function ClientProjectView({ loaderData }: Route.ComponentProps) 
           artifactsByPhase={artifactsByPhase}
         />
       </main>
+
+      <footer
+        style={{
+          padding: "20px 24px",
+          borderTop: `1px solid ${line}`,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          fontFamily: mono, fontSize: 11, color: ink4, letterSpacing: "0.04em",
+        }}
+      >
+        <span>© {new Date().getFullYear()} Alvarnystudios</span>
+        <a href="https://alvarnystudios.com" style={{ color: ink4, textDecoration: "none" }}>
+          alvarnystudios.com ↗
+        </a>
+      </footer>
     </div>
   );
 }

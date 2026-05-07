@@ -1,9 +1,9 @@
 import { desc, eq } from "drizzle-orm";
-import { CodeIcon, LayoutDashboard, Plus, Search, ShoppingCartIcon, UserPlus } from "lucide-react";
+import { ChevronRight, LayoutDashboard, Plus, Search, UserPlus } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useMemo, useState } from "react";
 import { Form, redirect } from "react-router";
-import { LeadCard, type Lead } from "~/components/LeadCard";
+import { LeadCard, type Lead, type LeadStatus } from "~/components/LeadCard";
 import { NewLeadModal } from "~/components/NewLeadModal";
 import { NewProjectModal } from "~/components/NewProjectModal";
 import { ProjectCard } from "~/components/ProjectCard";
@@ -15,6 +15,15 @@ import { getPhases, getTotalSteps, PROJECT_TYPE_LABELS, TOOL_URLS, type ProjectT
 import { destroySession, getSession, requireAdmin } from "~/lib/session.server";
 import { cn } from "~/lib/utils";
 import type { Route } from "./+types/home";
+
+const LEAD_STATUS_ORDER: LeadStatus[] = ["new", "contacted", "proposal", "converted", "lost"];
+const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
+  new: "New",
+  contacted: "Contacted",
+  proposal: "Proposal",
+  converted: "Converted",
+  lost: "Lost",
+};
 
 export function meta(_: Route.MetaArgs) {
   return [{ title: "Studio" }];
@@ -144,6 +153,24 @@ export async function action({ request }: Route.ActionArgs) {
     return redirect(`/project/${slug}`);
   }
 
+  if (intent === "update-lead") {
+    const leadId = String(formData.get("leadId"));
+    const name = String(formData.get("name") ?? "").trim();
+    if (!name) return { error: "Contact name is required." };
+    await db
+      .update(leadsTable)
+      .set({
+        name,
+        businessName: String(formData.get("businessName") ?? "").trim(),
+        email: String(formData.get("email") ?? "").trim(),
+        phone: String(formData.get("phone") ?? "").trim(),
+        notes: String(formData.get("notes") ?? "").trim(),
+        updatedAt: new Date(),
+      })
+      .where(eq(leadsTable.id, leadId));
+    return { ok: true };
+  }
+
   if (intent === "delete-lead") {
     const leadId = String(formData.get("leadId"));
     await db.delete(leadsTable).where(eq(leadsTable.id, leadId));
@@ -250,6 +277,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showLeadModal, setShowLeadModal] = useState(false);
   const [newSlug, setNewSlug] = useState<string | null>(null);
+  const [leadsOpen, setLeadsOpen] = useState(false);
 
   const handleCreated = useCallback((slug: string) => {
     setNewSlug(slug);
@@ -318,29 +346,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <div className="flex h-7 w-10 items-center justify-center rounded-md bg-foreground">
               <span className="text-sm font-bold text-background">AS</span>
             </div>
-            <span className="hidden sm:inline text-sm font-semibold text-foreground capitalize w-15">
-              {activeType}s
-            </span>
+            <span className="hidden sm:inline text-sm font-semibold text-foreground">Studio</span>
           </a>
 
           <div className="flex items-center gap-1 bg-secondary rounded-lg p-1 w-fit">
-            {TYPE_ORDER.map((type) => {
-              return (
-                <button
-                  key={type}
-                  onClick={() => setActiveType(type)}
-                  className={cn(
-                    "px-4 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer",
-                    activeType === type
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {PROJECT_TYPE_LABELS[type] === "Website" && <CodeIcon className="w-3.5 h-3.5" />}
-                  {PROJECT_TYPE_LABELS[type] === "Shop" && <ShoppingCartIcon className="w-3.5 h-3.5" />}
-                </button>
-              );
-            })}
+            {TYPE_ORDER.map((type) => (
+              <button
+                key={type}
+                onClick={() => setActiveType(type)}
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer",
+                  activeType === type
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {PROJECT_TYPE_LABELS[type]}
+              </button>
+            ))}
           </div>
 
           <div className="px-8 hidden sm:flex flex-1 items-center justify-center min-w-0">
@@ -489,15 +512,43 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {/* Leads */}
             {leads.length > 0 && (
               <section id="leads" className="mb-10 scroll-mt-20">
-                <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={() => setLeadsOpen((o) => !o)}
+                  className="flex w-full items-center justify-between mb-4 cursor-pointer group"
+                >
                   <h2 className="text-lg font-semibold text-foreground">Leads</h2>
-                  <span className="text-sm text-muted-foreground">{activeLeads.length} active</span>
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {leads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} />
-                  ))}
-                </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{activeLeads.length} active</span>
+                    <ChevronRight
+                      className="h-4 w-4 text-muted-foreground transition-transform duration-200"
+                      style={{ transform: leadsOpen ? "rotate(90deg)" : "rotate(0deg)" }}
+                    />
+                  </div>
+                </button>
+
+                {leadsOpen && (
+                  <div className="flex flex-col gap-6">
+                    {LEAD_STATUS_ORDER.map((status) => {
+                      const group = leads.filter((l) => l.status === status);
+                      if (group.length === 0) return null;
+                      return (
+                        <div key={status}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              {LEAD_STATUS_LABELS[status]}
+                            </span>
+                            <span className="text-xs text-muted-foreground">({group.length})</span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {group.map((lead) => (
+                              <LeadCard key={lead.id} lead={lead} />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </section>
             )}
 
@@ -505,12 +556,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {phaseGroups.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <p className="text-lg font-medium text-foreground">
-                  {search ? "No projects match" : `No ${PROJECT_TYPE_LABELS[activeType].toLowerCase()} projects yet`}
+                  {search ? "No projects match" : "No projects yet"}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {search
-                    ? "Try a different search term"
-                    : `Click "New ${PROJECT_TYPE_LABELS[activeType]}" to get started`}
+                  {search ? "Try a different search term" : "Click \"New Project\" to get started"}
                 </p>
               </div>
             ) : (

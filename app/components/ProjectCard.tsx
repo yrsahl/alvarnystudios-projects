@@ -6,7 +6,6 @@ import { cn } from "~/lib/utils";
 const TYPE_LABELS: Record<ProjectType, string> = {
   website: "Web",
   shop: "Shop",
-  // app: "App",
 };
 
 interface ProjectCardProps {
