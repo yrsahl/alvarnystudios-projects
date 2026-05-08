@@ -15,6 +15,7 @@ interface ProjectCardProps {
   businessName: string;
   startDate: string | null;
   type: ProjectType;
+  status?: "proposal" | "active";
   currentPhase: Phase;
   completedSteps: number;
   totalSteps: number;
@@ -48,6 +49,7 @@ export function ProjectCard({
   businessName,
   startDate,
   type,
+  status = "active",
   currentPhase,
   completedSteps,
   totalSteps,
@@ -97,16 +99,22 @@ export function ProjectCard({
           {subtitle && <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          <span
-            className="text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap"
-            style={{
-              color: currentPhase.color,
-              borderColor: `${currentPhase.color}50`,
-              backgroundColor: `${currentPhase.color}18`,
-            }}
-          >
-            {currentPhase.title}
-          </span>
+          {status === "proposal" ? (
+            <span className="text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap text-amber-600 border-amber-400/50 bg-amber-400/10">
+              Proposal
+            </span>
+          ) : (
+            <span
+              className="text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap"
+              style={{
+                color: currentPhase.color,
+                borderColor: `${currentPhase.color}50`,
+                backgroundColor: `${currentPhase.color}18`,
+              }}
+            >
+              {currentPhase.title}
+            </span>
+          )}
           <span className="text-[10px] text-muted-foreground/70 font-medium uppercase tracking-wider">
             {TYPE_LABELS[type]}
           </span>
