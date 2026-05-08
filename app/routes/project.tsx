@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { Globe } from "lucide-react";
 import { Link, redirect, useFetcher } from "react-router";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
@@ -24,24 +24,43 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   });
   if (!project) throw new Response("Project not found", { status: 404 });
 
-  const [brand, briefRecord, stepRecords, noteRecords, artifactRecords] = await Promise.all([
+  const [brand, briefRecord, stepRecords, noteRecords, artifactRecords, recentNotes, recentClientArtifacts] = await Promise.all([
     db.query.brandValues.findFirst({ where: eq(brandValues.projectId, project.id) }),
     db.query.projectBrief.findFirst({ where: eq(projectBrief.projectId, project.id) }),
     db.select().from(phaseSteps).where(eq(phaseSteps.projectId, project.id)),
     db.select().from(phaseNotes).where(eq(phaseNotes.projectId, project.id)),
     db.select().from(phaseArtifacts).where(eq(phaseArtifacts.projectId, project.id)),
+    db.select({ updatedAt: phaseNotes.updatedAt }).from(phaseNotes)
+      .where(and(eq(phaseNotes.projectId, project.id), ne(phaseNotes.clientNotes, "")))
+      .orderBy(desc(phaseNotes.updatedAt)).limit(1),
+    db.select({ createdAt: phaseArtifacts.createdAt }).from(phaseArtifacts)
+      .where(and(eq(phaseArtifacts.projectId, project.id), eq(phaseArtifacts.from, "client")))
+      .orderBy(desc(phaseArtifacts.createdAt)).limit(1),
   ]);
 
   const projectType = (project.type ?? "website") as ProjectType;
   const phases = getPhases(projectType);
 
   const stepsByPhase: Record<number, boolean[]> = {};
+  const completedAtByPhase: Record<number, (string | null)[]> = {};
   for (const phase of phases) {
     stepsByPhase[phase.n] = phase.steps.map((_step, i) => {
       const rec = stepRecords.find((r) => r.phaseNumber === phase.n && r.stepIndex === i);
       return rec?.completed ?? false;
     });
+    completedAtByPhase[phase.n] = phase.steps.map((_step, i) => {
+      const rec = stepRecords.find((r) => r.phaseNumber === phase.n && r.stepIndex === i);
+      return rec?.completedAt?.toISOString() ?? null;
+    });
   }
+
+  const activityDates: Date[] = [
+    ...(recentNotes[0] ? [recentNotes[0].updatedAt] : []),
+    ...(recentClientArtifacts[0] ? [recentClientArtifacts[0].createdAt] : []),
+  ];
+  const lastClientActivityAt = activityDates.length > 0
+    ? new Date(Math.max(...activityDates.map((d) => d.getTime()))).toISOString()
+    : null;
 
   const adminNotesByPhase: Record<number, string> = {};
   const clientNotesByPhase: Record<number, string> = {};
@@ -76,6 +95,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
       slug: project.slug,
       name: project.name,
       type: projectType,
+      status: project.status as "proposal" | "active",
       clientName: project.clientName,
       businessName: project.businessName,
       startDate: project.startDate,
@@ -99,9 +119,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
       retainerAmount: briefRecord?.retainerAmount ?? "",
     },
     stepsByPhase,
+    completedAtByPhase,
     adminNotesByPhase,
     clientNotesByPhase,
     artifactsByPhase,
+    lastClientActivityAt,
   };
 }
 
@@ -219,12 +241,32 @@ export async function action({ request, params }: Route.ActionArgs) {
     return { ok: true };
   }
 
+  if (intent === "confirm-project") {
+    await db.update(projects).set({ status: "active" }).where(eq(projects.id, project.id));
+    return { ok: true };
+  }
+
+  if (intent === "archive-project") {
+    await db.delete(projects).where(eq(projects.id, project.id));
+    return redirect("/");
+  }
+
   if (intent === "delete-project") {
     await db.delete(projects).where(eq(projects.id, project.id));
     return redirect("/");
   }
 
   throw new Response("Unknown intent", { status: 400 });
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) return "just now";
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export default function ProjectPage({ loaderData }: Route.ComponentProps) {
@@ -235,9 +277,11 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
     brief,
     isAdmin,
     stepsByPhase,
+    completedAtByPhase,
     adminNotesByPhase,
     clientNotesByPhase,
     artifactsByPhase,
+    lastClientActivityAt,
   } = loaderData;
   const deleteFetcher = useFetcher();
 
@@ -263,6 +307,11 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          {lastClientActivityAt && (
+            <span className="hidden md:inline text-xs text-muted-foreground px-2 py-1 rounded-md bg-secondary border border-border">
+              Client active {relativeTime(lastClientActivityAt)}
+            </span>
+          )}
           <a
             href={`/view/${project.slug}`}
             target="_blank"
@@ -286,6 +335,43 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
       </header>
 
       <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto w-full">
+        {project.status === "proposal" && (
+          <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-amber-400/30 bg-amber-400/8 px-5 py-4">
+            <div>
+              <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Proposal stage</p>
+              <p className="text-xs text-amber-700/70 dark:text-amber-300/70 mt-0.5">
+                Share the client link so they can fill in the brief and brand values. Confirm once the project is signed off.
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(`${window.location.origin}/view/${project.slug}`)}
+                className="text-xs px-3 py-1.5 rounded-md border border-amber-400/40 text-amber-700 dark:text-amber-300 hover:bg-amber-400/10 transition-colors cursor-pointer"
+              >
+                Copy client link
+              </button>
+              <deleteFetcher.Form method="post">
+                <input type="hidden" name="intent" value="archive-project" />
+                <button
+                  type="submit"
+                  className="text-xs px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
+                  Archive
+                </button>
+              </deleteFetcher.Form>
+              <deleteFetcher.Form method="post">
+                <input type="hidden" name="intent" value="confirm-project" />
+                <button
+                  type="submit"
+                  className="text-xs px-3 py-1.5 rounded-md bg-amber-500 text-white font-medium hover:bg-amber-600 transition-colors cursor-pointer"
+                >
+                  Confirm project
+                </button>
+              </deleteFetcher.Form>
+            </div>
+          </div>
+        )}
         <ProjectTimeline
           project={project}
           projectType={projectType}
@@ -293,6 +379,7 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
           brief={brief}
           isAdmin={isAdmin}
           initialStepsByPhase={stepsByPhase}
+          initialCompletedAtByPhase={completedAtByPhase}
           initialAdminNotesByPhase={adminNotesByPhase}
           initialClientNotesByPhase={clientNotesByPhase}
           artifactsByPhase={artifactsByPhase}
