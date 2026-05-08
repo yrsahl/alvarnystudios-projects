@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { isRouteErrorResponse, useRouteError } from "react-router";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
 import { db } from "~/db/index.server";
 import { brandValues, phaseArtifacts, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
@@ -28,10 +29,15 @@ export async function loader({ params }: Route.LoaderArgs) {
   ]);
 
   const stepsByPhase: Record<number, boolean[]> = {};
+  const completedAtByPhase: Record<number, (string | null)[]> = {};
   for (const phase of phases) {
     stepsByPhase[phase.n] = phase.steps.map((_step, i) => {
       const rec = stepRecords.find((r) => r.phaseNumber === phase.n && r.stepIndex === i);
       return rec?.completed ?? false;
+    });
+    completedAtByPhase[phase.n] = phase.steps.map((_step, i) => {
+      const rec = stepRecords.find((r) => r.phaseNumber === phase.n && r.stepIndex === i);
+      return rec?.completedAt?.toISOString() ?? null;
     });
   }
 
@@ -61,6 +67,7 @@ export async function loader({ params }: Route.LoaderArgs) {
       id: project.id,
       slug: project.slug,
       name: project.name,
+      status: project.status as "proposal" | "active",
       clientName: project.clientName,
       businessName: project.businessName,
       startDate: project.startDate,
@@ -84,6 +91,7 @@ export async function loader({ params }: Route.LoaderArgs) {
       retainerAmount: briefRecord?.retainerAmount ?? "",
     },
     stepsByPhase,
+    completedAtByPhase,
     adminNotesByPhase: {} as Record<number, string>,
     clientNotesByPhase,
     artifactsByPhase,
@@ -183,17 +191,160 @@ export async function action({ request, params }: Route.ActionArgs) {
   throw new Response("Forbidden", { status: 403 });
 }
 
-export default function ClientProjectView({ loaderData }: Route.ComponentProps) {
-  const { project, projectType, brand, brief, stepsByPhase, adminNotesByPhase, clientNotesByPhase, artifactsByPhase } = loaderData;
-  const displayName = project.businessName || project.name;
+const serif = "'Instrument Serif', 'Times New Roman', serif";
+const mono  = "'Geist Mono', ui-monospace, monospace";
+const sans  = "'Geist', ui-sans-serif, system-ui, sans-serif";
+const paper = "#fafaf7";
+const ink   = "#1a1a1a";
+const ink3  = "#52525b";
+const ink4  = "#a1a1aa";
+const line  = "rgba(26,26,26,0.08)";
 
-  const serif = "'Instrument Serif', 'Times New Roman', serif";
-  const mono  = "'Geist Mono', ui-monospace, monospace";
-  const ink   = "#1a1a1a";
-  const ink3  = "#52525b";
-  const ink4  = "#a1a1aa";
-  const paper = "#fafaf7";
-  const line  = "rgba(26,26,26,0.08)";
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const is404 = isRouteErrorResponse(error) && error.status === 404;
+
+  return (
+    <div
+      className="client-portal"
+      style={{ minHeight: "100vh", background: paper, display: "flex", flexDirection: "column" }}
+    >
+      <header
+        style={{
+          padding: "18px 32px",
+          borderBottom: `1px solid ${line}`,
+          background: `color-mix(in oklab, ${paper} 80%, transparent)`,
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}
+      >
+        <a
+          href="https://alvarnystudios.com"
+          style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none" }}
+        >
+          <div
+            style={{
+              width: 28, height: 28, borderRadius: 8,
+              background: ink, color: paper,
+              display: "grid", placeItems: "center",
+              fontFamily: serif, fontStyle: "italic", fontSize: 18, lineHeight: 1,
+              paddingBottom: 2,
+            }}
+          >
+            A
+          </div>
+          <span style={{ fontFamily: serif, fontSize: 22, color: ink, letterSpacing: "-0.01em" }}>
+            <span style={{ fontStyle: "italic" }}>Alvarny</span>
+            {" "}
+            <span style={{ fontFamily: mono, fontStyle: "normal", fontSize: 11, color: ink3, letterSpacing: "0.05em" }}>
+              STUDIOS
+            </span>
+          </span>
+        </a>
+      </header>
+
+      <div
+        style={{
+          flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "48px 24px",
+        }}
+      >
+        <div style={{ width: "100%", maxWidth: 420 }}>
+          <p
+            style={{
+              fontFamily: mono, fontSize: 11, color: ink3,
+              textTransform: "uppercase", letterSpacing: "0.08em",
+              display: "flex", alignItems: "center", gap: 8, marginBottom: 20,
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block", width: 6, height: 6,
+                background: "#dc2626", borderRadius: "50%",
+              }}
+            />
+            {is404 ? "Project not found" : "Something went wrong"}
+          </p>
+
+          <h1
+            style={{
+              fontFamily: serif, fontWeight: 400,
+              fontSize: "clamp(40px, 8vw, 60px)", lineHeight: 0.96,
+              letterSpacing: "-0.02em", color: ink,
+              marginBottom: 24,
+            }}
+          >
+            {is404 ? (
+              <>This link<br /><em style={{ fontStyle: "italic", color: "#dc2626" }}>has moved.</em></>
+            ) : (
+              <>Something<br /><em style={{ fontStyle: "italic", color: "#dc2626" }}>went wrong.</em></>
+            )}
+          </h1>
+
+          <p style={{ fontFamily: sans, fontSize: 15, color: ink3, lineHeight: 1.6, marginBottom: 12 }}>
+            {is404
+              ? "This project link is no longer active. Your designer may have updated the link or the project may have been reorganised."
+              : "We hit an unexpected error loading your project."}
+          </p>
+
+          <p style={{ fontFamily: sans, fontSize: 15, color: ink3, lineHeight: 1.6, marginBottom: 36 }}>
+            If you think this is a mistake, reach out to your designer and they'll get you back on track.
+          </p>
+
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <a
+              href="/view"
+              style={{
+                display: "inline-block",
+                background: ink, color: paper,
+                borderRadius: 999, padding: "13px 24px",
+                fontFamily: sans, fontSize: 14, fontWeight: 500,
+                textDecoration: "none", transition: "background 200ms ease",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#dc2626"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = ink; }}
+            >
+              Enter a project code →
+            </a>
+            <a
+              href="https://alvarnystudios.com"
+              style={{
+                display: "inline-block",
+                background: "transparent", color: ink3,
+                borderRadius: 999, padding: "13px 24px",
+                fontFamily: sans, fontSize: 14,
+                textDecoration: "none", border: `1px solid ${line}`,
+                transition: "border-color 200ms ease, color 200ms ease",
+              }}
+              onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = ink; el.style.color = ink; }}
+              onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = line; el.style.color = ink3; }}
+            >
+              Visit alvarnystudios.com
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <footer
+        style={{
+          padding: "24px 32px",
+          borderTop: `1px solid ${line}`,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          fontFamily: mono, fontSize: 11, color: ink4, letterSpacing: "0.04em",
+        }}
+      >
+        <span>© {new Date().getFullYear()} Alvarnystudios</span>
+        <a href="https://alvarnystudios.com" style={{ color: ink4, textDecoration: "none" }}>
+          alvarnystudios.com ↗
+        </a>
+      </footer>
+    </div>
+  );
+}
+
+export default function ClientProjectView({ loaderData }: Route.ComponentProps) {
+  const { project, projectType, brand, brief, stepsByPhase, completedAtByPhase, adminNotesByPhase, clientNotesByPhase, artifactsByPhase } = loaderData;
+  const displayName = project.businessName || project.name;
 
   return (
     <div className="client-portal flex min-h-screen flex-col" style={{ background: paper }}>
@@ -239,6 +390,21 @@ export default function ClientProjectView({ loaderData }: Route.ComponentProps) 
       </header>
 
       <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 max-w-4xl mx-auto w-full">
+        {project.status === "proposal" && (
+          <div
+            style={{
+              marginBottom: 24, padding: "16px 20px", borderRadius: 12,
+              border: "1px solid rgba(245,158,11,0.25)", background: "rgba(245,158,11,0.06)",
+            }}
+          >
+            <p style={{ fontFamily: mono, fontSize: 11, color: "#b45309", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
+              Proposal
+            </p>
+            <p style={{ fontFamily: "'Geist', ui-sans-serif, sans-serif", fontSize: 13, color: "#92400e", lineHeight: 1.55 }}>
+              Your designer has prepared this project for you. Review the phases below, fill in your brief and brand details, and upload any files. Once you're happy, let your designer know — they'll confirm and get started.
+            </p>
+          </div>
+        )}
         <ProjectTimeline
           project={project}
           projectType={projectType}
@@ -246,6 +412,7 @@ export default function ClientProjectView({ loaderData }: Route.ComponentProps) 
           brief={brief}
           isAdmin={false}
           initialStepsByPhase={stepsByPhase}
+          initialCompletedAtByPhase={completedAtByPhase}
           initialAdminNotesByPhase={adminNotesByPhase}
           initialClientNotesByPhase={clientNotesByPhase}
           artifactsByPhase={artifactsByPhase}
