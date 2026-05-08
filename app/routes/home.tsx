@@ -516,7 +516,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   onClick={() => setLeadsOpen((o) => !o)}
                   className="flex w-full items-center justify-between mb-4 cursor-pointer group"
                 >
-                  <h2 className="text-lg font-semibold text-foreground">Leads</h2>
+                  <h2 className="text-lg font-semibold text-green-500">Leads 💸</h2>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">{activeLeads.length} active</span>
                     <ChevronRight
