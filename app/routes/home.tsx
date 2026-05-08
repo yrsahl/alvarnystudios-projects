@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { ChevronRight, CodeIcon, LayoutDashboard, Plus, Search, ShoppingCart, UserPlus } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Form, redirect } from "react-router";
 import { LeadCard, type Lead, type LeadStatus } from "~/components/LeadCard";
 import { NewLeadModal } from "~/components/NewLeadModal";
@@ -16,12 +16,10 @@ import { destroySession, getSession, requireAdmin } from "~/lib/session.server";
 import { cn } from "~/lib/utils";
 import type { Route } from "./+types/home";
 
-const LEAD_STATUS_ORDER: LeadStatus[] = ["new", "contacted", "proposal", "converted", "lost"];
+const LEAD_STATUS_ORDER: LeadStatus[] = ["new", "contacted", "lost"];
 const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   new: "New",
   contacted: "Contacted",
-  proposal: "Proposal",
-  converted: "Converted",
   lost: "Lost",
 };
 
@@ -61,6 +59,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       slug: project.slug,
       name: project.name,
       type,
+      status: project.status as "proposal" | "active",
       clientName: project.clientName,
       businessName: project.businessName,
       startDate: project.startDate,
@@ -80,7 +79,6 @@ export async function loader({ request }: Route.LoaderArgs) {
     projectType: (l.projectType ?? "website") as ProjectType,
     notes: l.notes,
     status: l.status as Lead["status"],
-    convertedProjectId: l.convertedProjectId ?? null,
     createdAt: l.createdAt.toISOString(),
   }));
 
@@ -133,23 +131,18 @@ export async function action({ request }: Route.ActionArgs) {
     return { ok: true };
   }
 
-  if (intent === "convert-lead") {
+  if (intent === "start-proposal") {
     const leadId = String(formData.get("leadId"));
     const lead = await db.query.leads.findFirst({ where: eq(leadsTable.id, leadId) });
     if (!lead) return { error: "Lead not found." };
     const slug = nanoid(8).toLowerCase();
-    const name = [lead.businessName || lead.name, PROJECT_TYPE_LABELS[lead.projectType as ProjectType]]
-      .filter(Boolean)
-      .join(" ");
+    const name = lead.businessName || lead.name;
     const [project] = await db
       .insert(projects)
-      .values({ slug, name, type: lead.projectType, clientName: lead.name, businessName: lead.businessName })
+      .values({ slug, name, type: lead.projectType, status: "proposal", clientName: lead.name, businessName: lead.businessName })
       .returning();
     await db.insert(brandValues).values({ projectId: project.id });
-    await db
-      .update(leadsTable)
-      .set({ status: "converted", convertedProjectId: project.id, updatedAt: new Date() })
-      .where(eq(leadsTable.id, leadId));
+    await db.delete(leadsTable).where(eq(leadsTable.id, leadId));
     return redirect(`/project/${slug}`);
   }
 
@@ -287,7 +280,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const phases = useMemo(() => getPhases(activeType), [activeType]);
 
   const filteredProjects = useMemo(() => {
-    const byType = projects.filter((p) => p.type === activeType);
+    const byType = projects.filter((p) => p.type === activeType && p.status === "active");
     if (!search.trim()) return byType;
     const q = search.toLowerCase();
     return byType.filter(
@@ -297,6 +290,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         p.businessName.toLowerCase().includes(q),
     );
   }, [projects, activeType, search]);
+
+  const proposalProjects = useMemo(
+    () => projects.filter((p) => p.type === activeType && p.status === "proposal"),
+    [projects, activeType],
+  );
 
   const phaseGroups = useMemo(
     () =>
@@ -315,7 +313,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     [projects, phases, activeType],
   );
 
-  const activeLeads = leads.filter((l) => l.status !== "converted" && l.status !== "lost");
+  const typeLeads = leads.filter((l) => l.projectType === activeType);
+  const activeLeads = typeLeads.filter((l) => l.status !== "lost");
+  const prevTypeLeadsLength = useRef(typeLeads.length);
+  useEffect(() => {
+    if (typeLeads.length > prevTypeLeadsLength.current) setLeadsOpen(true);
+    prevTypeLeadsLength.current = typeLeads.length;
+  }, [typeLeads.length]);
   const lastPhaseN = phases[phases.length - 1].n;
   const retainerCount = projects.filter((p) => p.type === activeType && p.currentPhaseIndex === lastPhaseN).length;
 
@@ -435,9 +439,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   <UserPlus className="h-4 w-4" />
                   Leads
                 </div>
-                {activeLeads.length > 0 && (
+                {typeLeads.length > 0 && (
                   <span className="text-xs font-semibold tabular-nums bg-foreground text-background rounded-full px-1.5 py-0.5 min-w-5 text-center">
-                    {activeLeads.length}
+                    {typeLeads.length}
                   </span>
                 )}
               </button>
@@ -510,7 +514,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </section>
 
             {/* Leads */}
-            {leads.length > 0 && (
+            {typeLeads.length > 0 && (
               <section id="leads" className="mb-10 scroll-mt-20">
                 <button
                   onClick={() => setLeadsOpen((o) => !o)}
@@ -529,7 +533,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 {leadsOpen && (
                   <div className="flex flex-col gap-6">
                     {LEAD_STATUS_ORDER.map((status) => {
-                      const group = leads.filter((l) => l.status === status);
+                      const group = typeLeads.filter((l) => l.status === status);
                       if (group.length === 0) return null;
                       return (
                         <div key={status}>
@@ -549,6 +553,30 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     })}
                   </div>
                 )}
+              </section>
+            )}
+
+            {/* Proposals */}
+            {proposalProjects.length > 0 && (
+              <section className="mb-10">
+                <h2 className="text-lg font-semibold text-foreground mb-4">Proposals</h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {proposalProjects.map((project) => (
+                    <ProjectCard
+                      key={project.id}
+                      slug={project.slug}
+                      name={project.name}
+                      type={project.type}
+                      status={project.status}
+                      clientName={project.clientName}
+                      businessName={project.businessName}
+                      startDate={project.startDate}
+                      currentPhase={phases[project.currentPhaseIndex]}
+                      completedSteps={project.completedSteps}
+                      totalSteps={project.totalSteps}
+                    />
+                  ))}
+                </div>
               </section>
             )}
 

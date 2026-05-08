@@ -3,7 +3,7 @@ import { useFetcher } from "react-router";
 import { Input } from "~/components/ui/input";
 import type { ProjectType } from "~/lib/phases";
 
-export type LeadStatus = "new" | "contacted" | "proposal" | "converted" | "lost";
+export type LeadStatus = "new" | "contacted" | "lost";
 
 export interface Lead {
   id: string;
@@ -14,23 +14,15 @@ export interface Lead {
   projectType: ProjectType;
   notes: string;
   status: LeadStatus;
-  convertedProjectId: string | null;
   createdAt: string;
 }
 
 const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: string }> = {
   new:       { label: "New",       color: "#5B8CFF", bg: "#5B8CFF18" },
   contacted: { label: "Contacted", color: "#A78BFA", bg: "#A78BFA18" },
-  proposal:  { label: "Proposal",  color: "#FBBF24", bg: "#FBBF2418" },
-  converted: { label: "Converted", color: "#34D399", bg: "#34D39918" },
   lost:      { label: "Lost",      color: "#6b7280", bg: "#6b728018" },
 };
 
-const NEXT_STATUSES: Partial<Record<LeadStatus, LeadStatus>> = {
-  new: "contacted",
-  contacted: "proposal",
-  proposal: "converted",
-};
 
 interface Props {
   lead: Lead;
@@ -39,6 +31,11 @@ interface Props {
 export function LeadCard({ lead }: Props) {
   const fetcher = useFetcher();
   const [isEditing, setIsEditing] = useState(false);
+
+  function handleDelete() {
+    if (!confirm(`Delete lead "${lead.name}"?`)) return;
+    fetcher.submit({ intent: "delete-lead", leadId: lead.id }, { method: "post" });
+  }
 
   // Must be before any early returns — Rules of Hooks.
   // Check isEditing so we only close on our own submit (not status updates).
@@ -59,9 +56,8 @@ export function LeadCard({ lead }: Props) {
 
   const status = (fetcher.formData?.get("status") as LeadStatus | undefined) ?? lead.status;
   const cfg = STATUS_CONFIG[status];
-  const nextStatus = NEXT_STATUSES[status];
-  const isConverted = status === "converted";
   const isLost = status === "lost";
+  const isContacted = status === "contacted";
 
   if (isEditing) {
     return (
@@ -178,76 +174,110 @@ export function LeadCard({ lead }: Props) {
       )}
 
       {/* Actions */}
-      {!isConverted && !isLost && (
+      {!isLost && (
         <div className="flex gap-2 pt-1 border-t border-border">
-          {nextStatus && (
-            <fetcher.Form method="post" className="flex-1">
-              <input type="hidden" name="intent" value="update-lead-status" />
-              <input type="hidden" name="leadId" value={lead.id} />
-              <input type="hidden" name="status" value={nextStatus} />
+          {isContacted ? (
+            /* Contacted → start a proposal project or mark lost */
+            <>
+              <fetcher.Form method="post" className="flex-1">
+                <input type="hidden" name="intent" value="start-proposal" />
+                <input type="hidden" name="leadId" value={lead.id} />
+                <button
+                  type="submit"
+                  className="w-full text-xs px-2 py-1.5 rounded-md bg-foreground text-background font-medium hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                  Start Proposal
+                </button>
+              </fetcher.Form>
+              <fetcher.Form method="post">
+                <input type="hidden" name="intent" value="update-lead-status" />
+                <input type="hidden" name="leadId" value={lead.id} />
+                <input type="hidden" name="status" value="lost" />
+                <button
+                  type="submit"
+                  className="text-xs px-2 py-1.5 rounded-md text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer"
+                  title="Mark as lost"
+                >
+                  ✕
+                </button>
+              </fetcher.Form>
               <button
-                type="submit"
-                className="w-full text-xs px-2 py-1.5 rounded-md bg-foreground text-background font-medium hover:opacity-90 transition-opacity cursor-pointer"
+                type="button"
+                onClick={handleDelete}
+                className="text-xs px-2 py-1.5 rounded-md text-destructive/50 hover:text-destructive transition-colors cursor-pointer"
+                title="Delete lead"
               >
-                → {STATUS_CONFIG[nextStatus].label}
+                🗑
               </button>
-            </fetcher.Form>
-          )}
-          {status === "proposal" && (
-            <fetcher.Form method="post" className="flex-1">
-              <input type="hidden" name="intent" value="convert-lead" />
-              <input type="hidden" name="leadId" value={lead.id} />
+            </>
+          ) : (
+            /* New → advance to contacted */
+            <>
+              <fetcher.Form method="post" className="flex-1">
+                <input type="hidden" name="intent" value="update-lead-status" />
+                <input type="hidden" name="leadId" value={lead.id} />
+                <input type="hidden" name="status" value="contacted" />
+                <button
+                  type="submit"
+                  className="w-full text-xs px-2 py-1.5 rounded-md bg-foreground text-background font-medium hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                  → Contacted
+                </button>
+              </fetcher.Form>
               <button
-                type="submit"
-                className="w-full text-xs px-2 py-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="text-xs px-2 py-1.5 rounded-md text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer"
+                title="Edit lead"
               >
-                Convert to Project
+                ✎
               </button>
-            </fetcher.Form>
+              <fetcher.Form method="post">
+                <input type="hidden" name="intent" value="update-lead-status" />
+                <input type="hidden" name="leadId" value={lead.id} />
+                <input type="hidden" name="status" value="lost" />
+                <button
+                  type="submit"
+                  className="text-xs px-2 py-1.5 rounded-md text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer"
+                  title="Mark as lost"
+                >
+                  ✕
+                </button>
+              </fetcher.Form>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="text-xs px-2 py-1.5 rounded-md text-destructive/50 hover:text-destructive transition-colors cursor-pointer"
+                title="Delete lead"
+              >
+                🗑
+              </button>
+            </>
           )}
-          <button
-            type="button"
-            onClick={() => setIsEditing(true)}
-            className="text-xs px-2 py-1.5 rounded-md text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer"
-            title="Edit lead"
-          >
-            ✎
-          </button>
-          <fetcher.Form method="post">
-            <input type="hidden" name="intent" value="update-lead-status" />
-            <input type="hidden" name="leadId" value={lead.id} />
-            <input type="hidden" name="status" value="lost" />
-            <button
-              type="submit"
-              className="text-xs px-2 py-1.5 rounded-md text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer"
-              title="Mark as lost"
-            >
-              ✕
-            </button>
-          </fetcher.Form>
         </div>
       )}
 
-      {(isConverted || isLost) && (
+      {isLost && (
         <div className="flex items-center justify-between pt-1 border-t border-border">
-          {isConverted && lead.convertedProjectId ? (
-            <a
-              href={`/project/${lead.convertedProjectId}`}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          <span />
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="text-xs px-2 py-1 rounded-md text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer"
+              title="Edit lead"
             >
-              View project →
-            </a>
-          ) : (
-            <span />
-          )}
-          <button
-            type="button"
-            onClick={() => setIsEditing(true)}
-            className="text-xs px-2 py-1 rounded-md text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer"
-            title="Edit lead"
-          >
-            ✎
-          </button>
+              ✎
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="text-xs px-2 py-1 rounded-md text-destructive/50 hover:text-destructive transition-colors cursor-pointer"
+              title="Delete lead"
+            >
+              🗑
+            </button>
+          </div>
         </div>
       )}
     </div>
