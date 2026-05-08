@@ -255,6 +255,8 @@ export function PhaseCard({
   const [adminNotes, setAdminNotes] = useState(initialAdminNotes);
   const [clientNotes, setClientNotes] = useState(initialClientNotes);
   const [notesSaved, setNotesSaved] = useState(false);
+  const [notesTab, setNotesTab] = useState<"internal" | "client">("internal");
+  const [copied, setCopied] = useState(false);
   const fetcher = useFetcher({});
   const pollFetcher = useFetcher<{ clientNotes: string }>({});
   const adminDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -306,10 +308,20 @@ export function PhaseCard({
   const clientSteps = phase.steps
     .map((step, i) => ({ step, i }))
     .filter(({ step }) => step.clientOwned);
+  const adminOnlySteps = phase.steps
+    .map((step, i) => ({ step, i }))
+    .filter(({ step }) => !step.clientOwned);
   const hasClientTasks = clientSteps.length > 0;
   const pendingClientTasks = clientSteps.filter(({ i }) => !(checkedSteps[i] ?? false));
   const hasAdminArtifacts = artifacts.some((a) => a.from === "admin");
   const isWaiting = phase.clientUploads === false && !hasAdminArtifacts;
+
+  function copyClientLink() {
+    navigator.clipboard.writeText(`${window.location.origin}/view/${slug}`).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   function handleAdminNotesChange(value: string) {
     setAdminNotes(value);
@@ -556,13 +568,13 @@ export function PhaseCard({
             {isAdmin && (
               <>
                 <div className="grid gap-5 grid-cols-1 lg:grid-cols-2">
-                  {/* Steps */}
+                  {/* Steps — admin own + client grouped */}
                   <div>
                     <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                      Steps
+                      Your steps
                     </h4>
                     <ul>
-                      {phase.steps.map((step, i) => (
+                      {adminOnlySteps.map(({ step, i }) => (
                         <StepItem
                           key={i}
                           text={step.text}
@@ -571,12 +583,50 @@ export function PhaseCard({
                           checked={checkedSteps[i] ?? false}
                           completedAt={completedAtSteps[i] ?? null}
                           color={phase.color}
-                          clientOwned={step.clientOwned ?? false}
+                          clientOwned={false}
                           isAdmin={true}
                           onToggle={(idx, val) => onStepToggle(phase.n, idx, val)}
                         />
                       ))}
                     </ul>
+
+                    {clientSteps.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-border/60">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Client steps
+                          </h4>
+                          <span
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                            style={
+                              pendingClientTasks.length === 0
+                                ? { backgroundColor: `${phase.color}20`, color: phase.color }
+                                : { backgroundColor: "var(--muted)", color: "var(--muted-foreground)" }
+                            }
+                          >
+                            {pendingClientTasks.length === 0
+                              ? `All ${clientSteps.length} done ✓`
+                              : `${clientSteps.length - pendingClientTasks.length}/${clientSteps.length} done`}
+                          </span>
+                        </div>
+                        <ul>
+                          {clientSteps.map(({ step, i }) => (
+                            <StepItem
+                              key={i}
+                              text={step.text}
+                              index={i}
+                              phaseNumber={phase.n}
+                              checked={checkedSteps[i] ?? false}
+                              completedAt={completedAtSteps[i] ?? null}
+                              color={phase.color}
+                              clientOwned={false}
+                              isAdmin={true}
+                              onToggle={(idx, val) => onStepToggle(phase.n, idx, val)}
+                            />
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
 
                   {/* Tools + Tip */}
@@ -614,14 +664,25 @@ export function PhaseCard({
 
                 {/* Handover callout */}
                 {phase.handoverNote && (
-                  <div className="flex gap-2.5 rounded-lg px-3.5 py-3 text-sm border border-amber-500/25 bg-amber-500/8">
+                  <div className="flex items-start gap-2.5 rounded-lg px-3.5 py-3 text-sm border border-amber-500/25 bg-amber-500/8">
                     <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className="shrink-0 mt-0.5 text-amber-500">
                       <path d="M2 7.5h11M9 3.5l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Next step for client</span>
                       <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">{phase.handoverNote}</p>
                     </div>
+                    <button
+                      onClick={copyClientLink}
+                      className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md border transition-colors cursor-pointer"
+                      style={
+                        copied
+                          ? { borderColor: `${phase.color}40`, backgroundColor: `${phase.color}15`, color: phase.color }
+                          : { borderColor: "var(--amber-500/30)", backgroundColor: "var(--amber-500/10)", color: "var(--amber-700)" }
+                      }
+                    >
+                      {copied ? "Copied ✓" : "Copy client link"}
+                    </button>
                   </div>
                 )}
 
@@ -635,39 +696,61 @@ export function PhaseCard({
                   clientHint={phase.clientArtifactHint}
                 />
 
-                {/* Admin notes + shared notes */}
-                <div className="pt-5 border-t border-border space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Admin Notes
-                      </h4>
-                      <span className={`text-xs text-muted-foreground transition-opacity duration-500 ${notesSaved ? "opacity-100" : "opacity-0"}`}>
-                        Saved ✓
-                      </span>
-                    </div>
-                    <textarea
-                      value={adminNotes}
-                      onChange={(e) => handleAdminNotesChange(e.target.value)}
-                      placeholder="Internal notes — decisions, follow-ups, observations…"
-                      rows={3}
-                      className={textareaClass}
-                    />
-                  </div>
-                  {phase.n !== 0 && (
-                    <div>
-                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                        Shared Notes
-                      </h4>
+                {/* Notes — single for phase 0, tabbed for phases 1+ */}
+                <div className="pt-5 border-t border-border">
+                  {phase.n === 0 ? (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</h4>
+                        <span className={`text-xs text-muted-foreground transition-opacity duration-500 ${notesSaved ? "opacity-100" : "opacity-0"}`}>Saved ✓</span>
+                      </div>
                       <textarea
-                        ref={textareaRef}
-                        value={clientNotes}
-                        onChange={(e) => handleClientNotesChange(e.target.value)}
-                        placeholder="Agreed decisions, links, values confirmed with client…"
+                        value={adminNotes}
+                        onChange={(e) => handleAdminNotesChange(e.target.value)}
+                        placeholder="Internal notes — decisions, follow-ups, observations…"
                         rows={3}
                         className={textareaClass}
                       />
-                    </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1 mb-3">
+                        <button
+                          onClick={() => setNotesTab("internal")}
+                          className={`text-xs font-medium px-2.5 py-1 rounded-md transition-colors cursor-pointer ${notesTab === "internal" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+                        >
+                          Internal
+                        </button>
+                        <button
+                          onClick={() => setNotesTab("client")}
+                          className={`text-xs font-medium px-2.5 py-1 rounded-md transition-colors cursor-pointer ${notesTab === "client" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+                        >
+                          Client-visible
+                        </button>
+                        {notesTab === "client" && (
+                          <span className="text-[10px] text-muted-foreground/60 ml-1">shared with client</span>
+                        )}
+                        <span className={`ml-auto text-xs text-muted-foreground transition-opacity duration-500 ${notesSaved ? "opacity-100" : "opacity-0"}`}>Saved ✓</span>
+                      </div>
+                      {notesTab === "internal" ? (
+                        <textarea
+                          value={adminNotes}
+                          onChange={(e) => handleAdminNotesChange(e.target.value)}
+                          placeholder="Internal notes — decisions, follow-ups, observations…"
+                          rows={3}
+                          className={textareaClass}
+                        />
+                      ) : (
+                        <textarea
+                          ref={textareaRef}
+                          value={clientNotes}
+                          onChange={(e) => handleClientNotesChange(e.target.value)}
+                          placeholder="Agreed decisions, links, values confirmed with client…"
+                          rows={3}
+                          className={textareaClass}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </>

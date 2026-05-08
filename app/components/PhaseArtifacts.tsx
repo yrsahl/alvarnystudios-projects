@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFetcher } from "react-router";
 
 export interface Artifact {
@@ -161,8 +161,21 @@ function AdminAddForm({ phaseNumber, from, hint, color }: {
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const [open, setOpen] = useState(false);
+  const [shared, setShared] = useState(false);
   const labelRef = useRef<HTMLInputElement>(null);
   const submitting = fetcher.state !== "idle";
+  const hadSubmission = useRef(false);
+
+  useEffect(() => {
+    if (fetcher.state !== "idle") { hadSubmission.current = true; return; }
+    if (!hadSubmission.current) return;
+    hadSubmission.current = false;
+    if (from === "admin") {
+      setShared(true);
+      const t = setTimeout(() => setShared(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [fetcher.state, from]);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -178,15 +191,23 @@ function AdminAddForm({ phaseNumber, from, hint, color }: {
 
   if (!open) {
     return (
-      <button
-        onClick={() => { setOpen(true); setTimeout(() => labelRef.current?.focus(), 0); }}
-        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mt-2 cursor-pointer"
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-        Add
-      </button>
+      <div className="flex items-center gap-3 mt-2">
+        <button
+          onClick={() => { setOpen(true); setTimeout(() => labelRef.current?.focus(), 0); }}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          Add
+        </button>
+        <span
+          className="text-xs transition-opacity duration-500"
+          style={{ color, opacity: shared ? 1 : 0 }}
+        >
+          Shared with client ✓
+        </span>
+      </div>
     );
   }
 
