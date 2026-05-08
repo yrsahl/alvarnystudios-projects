@@ -107,8 +107,7 @@ export function ProjectTimeline({
             isAdmin={isAdmin}
             initialOpen={isAdmin ? phase.n === 0 : phase.n === clientActivePhaseN}
             artifacts={artifactsByPhase[phase.n] ?? []}
-            brand={phase.n === 1 ? brand : undefined}
-            brief={phase.n === 0 ? brief : undefined}
+            brand={(phase.n === 0 || phase.n === 1) ? brand : undefined}
             onStepToggle={handleStepToggle}
           />
         ))}

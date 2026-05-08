@@ -4,6 +4,9 @@ export interface Step {
   text: string;
   clientText?: string;
   clientOwned?: boolean;
+  clientTaskType?: "design-review" | "link-action" | "confirm";
+  actionHint?: string;
+  actionUrl?: string;
 }
 
 export interface Phase {
@@ -22,6 +25,7 @@ export interface Phase {
   handoverNote: string;
   clientGuidance: string;
   isService?: boolean;
+  clientUploads?: boolean; // false = hide upload zone for client in this phase
 }
 
 // ── Website ────────────────────────────────────────────────────────────────
@@ -48,7 +52,7 @@ export const WEBSITE_PHASES: Phase[] = [
     handoverNote:
       "Once the brief is filled in, send the client their project link so they can track progress and upload brand assets.",
     clientGuidance:
-      "Welcome to your project portal! To get things moving, upload any existing brand files you have — logo, inspiration images, or competitor sites you like. This gives your designer everything needed to get started.",
+      "Welcome to your project portal! Fill in the brief below to tell us about your goals, set your brand colours if you already have them, and upload any existing files — logo, inspiration images, or sites you admire. This gives your designer everything needed to get started.",
   },
   {
     n: 1,
@@ -63,12 +67,16 @@ export const WEBSITE_PHASES: Phase[] = [
         text: "Iterate on v0 output with client via Vercel preview link",
         clientText: "Review the design preview and share your feedback",
         clientOwned: true,
+        clientTaskType: "design-review",
+        actionHint: "Open the preview link your designer shared above, look through it, then approve or request changes.",
       },
       { text: "Generate hero images and visuals with Midjourney or Ideogram" },
       {
         text: "Finalise colours — swap CSS variables in globals.css",
         clientText: "Confirm your final brand colours",
         clientOwned: true,
+        clientTaskType: "design-review",
+        actionHint: "Review the design preview and leave colour feedback in the notes — your designer handles the adjustments.",
       },
     ],
     tools: ["v0 by Vercel", "Looka", "Brandmark", "Midjourney", "Ideogram"],
@@ -79,6 +87,7 @@ export const WEBSITE_PHASES: Phase[] = [
       "Share the Vercel preview link and any logo options. Wait for the client's feedback before finalising colours and generating images.",
     clientGuidance:
       "Your designer is building your brand identity. Once they share a preview below, click through it and leave your thoughts — what you love and what to change.",
+    clientUploads: false,
   },
   {
     n: 2,
@@ -95,6 +104,8 @@ export const WEBSITE_PHASES: Phase[] = [
         text: "Populate all content in Sanity Studio",
         clientText: "Add your content — text, images, and service details — in the CMS",
         clientOwned: true,
+        clientTaskType: "link-action",
+        actionHint: "Your designer will share the CMS link above once the site is set up — click it to open the editor.",
       },
       { text: "Wire up contact form (Resend) and Google Maps embed" },
       { text: "Add LocalBusiness JSON-LD schema for SEO" },
@@ -121,6 +132,9 @@ export const WEBSITE_PHASES: Phase[] = [
         text: "Optimise Google Business Profile — photos, categories, hours",
         clientText: "Update your Google Business Profile with photos, categories, and opening hours",
         clientOwned: true,
+        clientTaskType: "link-action",
+        actionHint: "Sign in, add fresh photos, set your opening hours, and select the right service categories.",
+        actionUrl: "https://business.google.com",
       },
       { text: "Verify Google Search Console and submit sitemap" },
       { text: "Install Google Analytics 4" },
@@ -155,6 +169,8 @@ export const WEBSITE_PHASES: Phase[] = [
         text: "Connect custom domain in Vercel",
         clientText: "Connect your domain to make the site live",
         clientOwned: true,
+        clientTaskType: "confirm",
+        actionHint: "Follow the DNS setup guide your designer shared above.",
       },
     ],
     tools: ["Vercel", "Loom", "Better Uptime"],
@@ -219,7 +235,7 @@ export const SHOP_PHASES: Phase[] = [
     handoverNote:
       "Once platform is decided, send the client their project link and the product import template. They should prepare their catalog before Phase 2.",
     clientGuidance:
-      "Welcome to your project portal! To get started, upload your product catalog (a spreadsheet works great) and any existing brand files — logo, inspiration, or competitor shops you like. The more you share upfront, the faster we can build.",
+      "Welcome to your project portal! Fill in the brief below to tell us about your store, set your brand colours if you already have them, and upload any existing files — logo, product catalog (a spreadsheet works great), or competitor shops you admire. The more you share upfront, the faster we can build.",
   },
   {
     n: 1,
@@ -239,11 +255,15 @@ export const SHOP_PHASES: Phase[] = [
         text: "Iterate on design with client — homepage, product page, cart",
         clientText: "Review the store design preview and share what to keep and what to change",
         clientOwned: true,
+        clientTaskType: "design-review",
+        actionHint: "Open the store preview link your designer shared above, explore it, then approve or request changes.",
       },
       {
         text: "Finalise brand colours and typography",
         clientText: "Confirm your brand colours and fonts",
         clientOwned: true,
+        clientTaskType: "design-review",
+        actionHint: "Review the store preview and leave colour/font feedback in the notes — your designer handles the adjustments.",
       },
     ],
     tools: ["v0 by Vercel", "Figma", "Looka", "Brandmark", "Midjourney", "Shopify"],
@@ -254,6 +274,7 @@ export const SHOP_PHASES: Phase[] = [
       "Share the design preview link (Shopify sandbox or Vercel). Ask the client to annotate directly or leave written feedback via notes.",
     clientGuidance:
       "Your designer has created a look for your store. Click the preview link below and let us know what you love and what to change — the sooner you give feedback, the faster we can finalise.",
+    clientUploads: false,
   },
   {
     n: 2,
@@ -272,8 +293,10 @@ export const SHOP_PHASES: Phase[] = [
       { text: "Add client as store admin — share admin link" },
       {
         text: "Client imports product catalog (products, prices, descriptions, images)",
-        clientText: "Add your products to the store — use the admin link shared below",
+        clientText: "Add your products to the store",
         clientOwned: true,
+        clientTaskType: "link-action",
+        actionHint: "Use the store admin link your designer shared above to add products, prices, and images.",
       },
       { text: "QA the complete checkout flow end-to-end" },
     ],
@@ -305,6 +328,8 @@ export const SHOP_PHASES: Phase[] = [
         text: "Client reviews legal pages and confirms accuracy",
         clientText: "Review your legal pages (AGB, Widerrufsbelehrung) and confirm they're correct",
         clientOwned: true,
+        clientTaskType: "confirm",
+        actionHint: "Open the legal page links your designer shared above and read through them.",
       },
     ],
     tools: ["Cookiebot", "Trusted Shops", "Google Analytics 4"],
@@ -333,6 +358,8 @@ export const SHOP_PHASES: Phase[] = [
         text: "Client connects custom domain (follow DNS instructions)",
         clientText: "Connect your domain to open your store",
         clientOwned: true,
+        clientTaskType: "confirm",
+        actionHint: "Follow the DNS setup guide your designer shared above.",
       },
     ],
     tools: ["Shopify", "Vercel", "Loom", "Better Uptime", "Cloudflare"],

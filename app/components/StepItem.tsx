@@ -10,6 +10,8 @@ interface Props {
   color: string;
   clientOwned: boolean;
   isAdmin: boolean;
+  actionHint?: string;
+  actionUrl?: string;
   onToggle: (index: number, checked: boolean) => void;
 }
 
@@ -23,7 +25,7 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export function StepItem({ text, index, phaseNumber, checked, completedAt, color, clientOwned, isAdmin, onToggle }: Props) {
+export function StepItem({ text, index, phaseNumber, checked, completedAt, color, clientOwned, isAdmin, actionHint, actionUrl, onToggle }: Props) {
   const fetcher = useFetcher({});
   const canToggle = isAdmin || clientOwned;
   const pendingChecked = fetcher.formData != null ? fetcher.formData.get("completed") === "true" : checked;
@@ -81,20 +83,33 @@ export function StepItem({ text, index, phaseNumber, checked, completedAt, color
           )}
         </span>
 
-        {clientOwned && !isAdmin && (
-          <span
-            className="shrink-0 text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded border mt-0.5"
-            style={{ color, borderColor: `${color}40`, backgroundColor: `${color}15` }}
-          >
-            Your action
-          </span>
-        )}
+        {/* Admin-only "Client" badge */}
         {clientOwned && isAdmin && (
           <span className="shrink-0 text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded border mt-0.5 text-muted-foreground border-border bg-muted">
             Client
           </span>
         )}
       </button>
+
+      {/* Action hint — outside the button so links are valid */}
+      {!isAdmin && !pendingChecked && actionHint && (
+        <p className="pl-6.5 mt-1 text-[11px] leading-snug text-muted-foreground">
+          {"→ "}
+          {actionUrl ? (
+            <a
+              href={actionUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-foreground transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {actionHint}
+            </a>
+          ) : (
+            actionHint
+          )}
+        </p>
+      )}
     </li>
   );
 }

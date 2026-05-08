@@ -1,12 +1,215 @@
 import { useEffect, useRef, useState } from "react";
 import { useFetcher, useParams } from "react-router";
-import type { Phase } from "~/lib/phases";
+import type { Phase, Step } from "~/lib/phases";
 import { TOOL_URLS } from "~/lib/phases";
 import { BrandValuesPanel, type BrandData } from "./BrandValuesPanel";
 import { PhaseArtifacts, type Artifact } from "./PhaseArtifacts";
-import { ProjectBriefPanel, type BriefData } from "./ProjectBriefPanel";
 import { ProgressBar } from "./ProgressBar";
 import { StepItem } from "./StepItem";
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) return "just now";
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function ClientTaskCard({
+  step,
+  index,
+  phaseNumber,
+  checked,
+  completedAt,
+  color,
+  hasPreview,
+  onToggle,
+  onFocusNotes,
+}: {
+  step: Step;
+  index: number;
+  phaseNumber: number;
+  checked: boolean;
+  completedAt: string | null;
+  color: string;
+  hasPreview: boolean;
+  onToggle: (index: number, checked: boolean) => void;
+  onFocusNotes: () => void;
+}) {
+  const fetcher = useFetcher({});
+  const [requestedChanges, setRequestedChanges] = useState(false);
+  const pendingChecked = fetcher.formData != null
+    ? fetcher.formData.get("completed") === "true"
+    : checked;
+
+  function toggle(next: boolean) {
+    onToggle(index, next);
+    fetcher.submit(
+      { intent: "toggle-step", phaseNumber: String(phaseNumber), stepIndex: String(index), completed: String(next) },
+      { method: "post" },
+    );
+  }
+
+  const taskType = step.clientTaskType ?? "confirm";
+  const label = step.clientText ?? step.text;
+
+  if (pendingChecked) {
+    return (
+      <div
+        className="flex items-center justify-between rounded-lg border px-4 py-3"
+        style={{ borderColor: `${color}40`, backgroundColor: `${color}0a` }}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span
+            className="shrink-0 w-4 h-4 rounded border flex items-center justify-center"
+            style={{ backgroundColor: color, borderColor: color }}
+          >
+            <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+              <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <span className="text-sm font-medium truncate" style={{ color }}>{label}</span>
+          {completedAt && (
+            <span className="text-xs text-muted-foreground shrink-0">{relativeTime(completedAt)}</span>
+          )}
+        </div>
+        <button
+          onClick={() => toggle(false)}
+          className="shrink-0 ml-3 text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+        >
+          Undo
+        </button>
+      </div>
+    );
+  }
+
+  if (taskType === "design-review" && !hasPreview) return null;
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+      <div>
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {step.actionHint && (
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{step.actionHint}</p>
+        )}
+        {requestedChanges && (
+          <p className="text-xs mt-2 font-medium" style={{ color }}>
+            ↓ Add your feedback in the notes section below
+          </p>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {taskType === "design-review" && (
+          <>
+            <button
+              onClick={() => toggle(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-md text-white transition-opacity"
+              style={{ backgroundColor: color }}
+            >
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Looks great — approve
+            </button>
+            <button
+              onClick={() => {
+                setRequestedChanges(true);
+                setTimeout(() => setRequestedChanges(false), 4000);
+                onFocusNotes();
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-md border border-border text-foreground hover:bg-muted transition-colors"
+            >
+              Request changes
+            </button>
+          </>
+        )}
+        {taskType === "link-action" && (
+          <>
+            {step.actionUrl && (
+              <a
+                href={step.actionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-md text-white"
+                style={{ backgroundColor: color }}
+              >
+                Open →
+              </a>
+            )}
+            <button
+              onClick={() => toggle(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-md border border-border text-foreground hover:bg-muted transition-colors"
+            >
+              ✓ Mark as done
+            </button>
+          </>
+        )}
+        {taskType === "confirm" && (
+          <>
+            {step.actionUrl && (
+              <a
+                href={step.actionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-md text-white"
+                style={{ backgroundColor: color }}
+              >
+                Open →
+              </a>
+            )}
+            <button
+              onClick={() => toggle(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-md border border-border text-foreground hover:bg-muted transition-colors"
+            >
+              ✓ Done
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Compact read-only brand reference shown to admin in phase 1
+function BrandReference({ brand }: { brand: BrandData }) {
+  const swatches = [
+    { key: "primaryColor" as const, label: "Primary" },
+    { key: "secondaryColor" as const, label: "Secondary" },
+    { key: "accentColor" as const, label: "Accent" },
+    { key: "bgColor" as const, label: "BG" },
+    { key: "textColor" as const, label: "Text" },
+  ];
+  const hasFonts = brand.headingFont || brand.bodyFont;
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+      <div className="flex items-center justify-between mb-2.5">
+        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Client Brand Values</h4>
+        <span className="text-[10px] text-muted-foreground">set in phase 0</span>
+      </div>
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          {swatches.map(({ key, label }) => (
+            <div key={key} className="flex flex-col items-center gap-1">
+              <span
+                className="w-5 h-5 rounded border border-border/60"
+                style={{ background: brand[key] }}
+                title={`${label}: ${brand[key]}`}
+              />
+              <span className="text-[9px] text-muted-foreground">{label}</span>
+            </div>
+          ))}
+        </div>
+        {hasFonts && (
+          <span className="text-[11px] text-muted-foreground border-l border-border pl-3">
+            {[brand.headingFont, brand.bodyFont].filter(Boolean).join(" / ")}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function mergeNotes(base: string, local: string, remote: string): string {
   if (remote === local) return local;
@@ -29,7 +232,6 @@ interface Props {
   initialOpen?: boolean;
   artifacts: Artifact[];
   brand?: BrandData;
-  brief?: BriefData;
   onStepToggle: (phaseNumber: number, stepIndex: number, checked: boolean) => void;
 }
 
@@ -46,13 +248,13 @@ export function PhaseCard({
   initialOpen,
   artifacts,
   brand,
-  brief,
   onStepToggle,
 }: Props) {
   const { slug } = useParams();
   const [open, setOpen] = useState(initialOpen ?? phase.n === 0);
   const [adminNotes, setAdminNotes] = useState(initialAdminNotes);
   const [clientNotes, setClientNotes] = useState(initialClientNotes);
+  const [notesSaved, setNotesSaved] = useState(false);
   const fetcher = useFetcher({});
   const pollFetcher = useFetcher<{ clientNotes: string }>({});
   const adminDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -60,7 +262,17 @@ export function PhaseCard({
   const clientNotesValueRef = useRef(clientNotes);
   const serverBaseRef = useRef(initialClientNotes);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const notesFetcherHadSubmission = useRef(false);
   clientNotesValueRef.current = clientNotes;
+
+  useEffect(() => {
+    if (fetcher.state !== "idle") { notesFetcherHadSubmission.current = true; return; }
+    if (!notesFetcherHadSubmission.current) return;
+    notesFetcherHadSubmission.current = false;
+    setNotesSaved(true);
+    const t = setTimeout(() => setNotesSaved(false), 2000);
+    return () => clearTimeout(t);
+  }, [fetcher.state]);
 
   useEffect(() => {
     if (phase.n === 0) return;
@@ -97,6 +309,7 @@ export function PhaseCard({
   const hasClientTasks = clientSteps.length > 0;
   const pendingClientTasks = clientSteps.filter(({ i }) => !(checkedSteps[i] ?? false));
   const hasAdminArtifacts = artifacts.some((a) => a.from === "admin");
+  const isWaiting = phase.clientUploads === false && !hasAdminArtifacts;
 
   function handleAdminNotesChange(value: string) {
     setAdminNotes(value);
@@ -225,8 +438,8 @@ export function PhaseCard({
                   </div>
                 )}
 
-                {/* From your team (artifacts) */}
-                {hasAdminArtifacts && (
+                {/* Designer-shared artifacts — show when present, or a waiting placeholder for phases that need them */}
+                {hasAdminArtifacts ? (
                   <PhaseArtifacts
                     phaseNumber={phase.n}
                     artifacts={artifacts}
@@ -236,15 +449,25 @@ export function PhaseCard({
                     clientHint={phase.clientArtifactHint}
                     showOnlyAdmin
                   />
+                ) : phase.clientUploads === false && (
+                  <div className="flex items-start gap-3 rounded-lg border border-dashed border-border px-4 py-3.5 text-sm">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 mt-0.5 text-muted-foreground">
+                      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M8 5v3.5l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <div>
+                      <p className="font-medium text-foreground">Your designer is working on this</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                        They'll share a preview here as soon as it's ready. You'll be able to review and leave feedback then.
+                      </p>
+                    </div>
+                  </div>
                 )}
 
-                {/* Brief panel for phase 0 (if client ever sees it) */}
-                {phase.n === 0 && brief && <ProjectBriefPanel brief={brief} isAdmin={false} />}
+                {/* Phase 0: initial brand input */}
+                {phase.n === 0 && brand && <BrandValuesPanel brand={brand} />}
 
-                {/* Brand panel for phase 1 — clients fill in their brand values */}
-                {phase.n === 1 && brand && <BrandValuesPanel brand={brand} />}
-
-                {/* Service phases (retainer): show what's included instead of a task list */}
+                {/* Service phases: show what's included */}
                 {phase.isService ? (
                   <div>
                     <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
@@ -259,41 +482,44 @@ export function PhaseCard({
                       ))}
                     </ul>
                   </div>
-                ) : hasClientTasks ? (
+                ) : !isWaiting && hasClientTasks ? (
                   <div>
                     <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
                       Your tasks
                     </h4>
-                    <ul>
+                    <div className="space-y-3">
                       {clientSteps.map(({ step, i }) => (
-                        <StepItem
+                        <ClientTaskCard
                           key={i}
-                          text={step.clientText ?? step.text}
+                          step={step}
                           index={i}
                           phaseNumber={phase.n}
                           checked={checkedSteps[i] ?? false}
                           completedAt={completedAtSteps[i] ?? null}
                           color={phase.color}
-                          clientOwned={true}
-                          isAdmin={false}
+                          hasPreview={hasAdminArtifacts}
                           onToggle={(idx, val) => onStepToggle(phase.n, idx, val)}
+                          onFocusNotes={() => {
+                            textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                            textareaRef.current?.focus();
+                          }}
                         />
                       ))}
-                    </ul>
+                    </div>
                   </div>
-                ) : (
+                ) : !isWaiting && phase.n > 0 && (
                   <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-muted border border-border text-xs text-muted-foreground">
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
                       <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.2" />
                       <path d="M4.5 7.5l2 2 3-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                    Your team is handling this phase — no action needed from you.
+                    Your team is handling this phase — feel free to share files or questions below.
                   </div>
                 )}
 
-                {/* Share with team + notes */}
-                {phase.n !== 0 && (
-                  <div className="space-y-4">
+                {/* Upload zone + notes */}
+                <div className="space-y-4">
+                  {phase.clientUploads !== false && (
                     <PhaseArtifacts
                       phaseNumber={phase.n}
                       artifacts={artifacts}
@@ -303,28 +529,33 @@ export function PhaseCard({
                       clientHint={phase.clientArtifactHint}
                       showOnlyClient
                     />
-                    <div>
-                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                  )}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Notes & questions
                       </h4>
-                      <textarea
-                        ref={textareaRef}
-                        value={clientNotes}
-                        onChange={(e) => handleClientNotesChange(e.target.value)}
-                        placeholder="Leave notes or questions for your designer here…"
-                        rows={3}
-                        className={textareaClass}
-                      />
+                      <span className={`text-xs text-muted-foreground transition-opacity duration-500 ${notesSaved ? "opacity-100" : "opacity-0"}`}>
+                        Saved ✓
+                      </span>
                     </div>
+                    <textarea
+                      ref={textareaRef}
+                      value={clientNotes}
+                      onChange={(e) => handleClientNotesChange(e.target.value)}
+                      placeholder="Leave notes or questions for your designer here…"
+                      rows={3}
+                      className={textareaClass}
+                    />
                   </div>
-                )}
+                </div>
               </>
             )}
 
             {/* ── ADMIN VIEW ── */}
             {isAdmin && (
               <>
-                <div className={`grid gap-5 ${isAdmin ? "grid-cols-1 xl:grid-cols-2" : "grid-cols-1"}`}>
+                <div className="grid gap-5 grid-cols-1 lg:grid-cols-2">
                   {/* Steps */}
                   <div>
                     <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
@@ -348,48 +579,47 @@ export function PhaseCard({
                     </ul>
                   </div>
 
-                  {/* Tools + Key Insight */}
-                  <div>
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                      Tools
-                    </h4>
-                    <div className="flex flex-wrap gap-1.5 mb-5">
-                      {phase.tools.map((tool) => (
-                        <a
-                          key={tool}
-                          href={TOOL_URLS[tool]}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs font-medium px-2.5 py-1 rounded-md bg-muted border border-border text-muted-foreground transition-colors hover:text-foreground"
-                        >
-                          {tool}
-                        </a>
-                      ))}
+                  {/* Tools + Tip */}
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                        Tools
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {phase.tools.map((tool) => (
+                          <a
+                            key={tool}
+                            href={TOOL_URLS[tool]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium px-2.5 py-1 rounded-md bg-muted border border-border text-muted-foreground transition-colors hover:text-foreground"
+                          >
+                            {tool}
+                          </a>
+                        ))}
+                      </div>
                     </div>
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                      Key Insight
-                    </h4>
                     <div
                       className="p-3 rounded-lg text-xs text-muted-foreground leading-relaxed border-l-2 bg-muted"
                       style={{ borderLeftColor: phase.color }}
                     >
+                      <span className="font-semibold text-foreground/60">Tip · </span>
                       {phase.tip}
                     </div>
                   </div>
                 </div>
 
                 {/* Special panels */}
-                {phase.n === 0 && brief && <ProjectBriefPanel brief={brief} isAdmin={true} />}
-                {phase.n === 1 && brand && <BrandValuesPanel brand={brand} />}
+                {phase.n === 1 && brand && <BrandReference brand={brand} />}
 
                 {/* Handover callout */}
                 {phase.handoverNote && (
                   <div className="flex gap-2.5 rounded-lg px-3.5 py-3 text-sm border border-amber-500/25 bg-amber-500/8">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 mt-0.5 text-amber-500">
-                      <path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10 4.5 11.5l.5-3.5L2.5 5.5 6 5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className="shrink-0 mt-0.5 text-amber-500">
+                      <path d="M2 7.5h11M9 3.5l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                     <div>
-                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Handover</span>
+                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Next step for client</span>
                       <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">{phase.handoverNote}</p>
                     </div>
                   </div>
@@ -408,9 +638,14 @@ export function PhaseCard({
                 {/* Admin notes + shared notes */}
                 <div className="pt-5 border-t border-border space-y-4">
                   <div>
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                      Admin Notes
-                    </h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Admin Notes
+                      </h4>
+                      <span className={`text-xs text-muted-foreground transition-opacity duration-500 ${notesSaved ? "opacity-100" : "opacity-0"}`}>
+                        Saved ✓
+                      </span>
+                    </div>
                     <textarea
                       value={adminNotes}
                       onChange={(e) => handleAdminNotesChange(e.target.value)}
