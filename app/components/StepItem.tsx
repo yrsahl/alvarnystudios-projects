@@ -6,13 +6,24 @@ interface Props {
   index: number;
   phaseNumber: number;
   checked: boolean;
+  completedAt?: string | null;
   color: string;
   clientOwned: boolean;
   isAdmin: boolean;
   onToggle: (index: number, checked: boolean) => void;
 }
 
-export function StepItem({ text, index, phaseNumber, checked, color, clientOwned, isAdmin, onToggle }: Props) {
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) return "just now";
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+export function StepItem({ text, index, phaseNumber, checked, completedAt, color, clientOwned, isAdmin, onToggle }: Props) {
   const fetcher = useFetcher({});
   const canToggle = isAdmin || clientOwned;
   const pendingChecked = fetcher.formData != null ? fetcher.formData.get("completed") === "true" : checked;
@@ -50,17 +61,24 @@ export function StepItem({ text, index, phaseNumber, checked, color, clientOwned
           )}
         </span>
 
-        <span
-          className={cn(
-            "flex-1 text-sm leading-relaxed transition-colors duration-150",
-            pendingChecked
-              ? "line-through text-muted-foreground/50"
-              : canToggle
-                ? "text-foreground"
-                : "text-muted-foreground",
+        <span className="flex-1 min-w-0">
+          <span
+            className={cn(
+              "block text-sm leading-relaxed transition-colors duration-150",
+              pendingChecked
+                ? "line-through text-muted-foreground/50"
+                : canToggle
+                  ? "text-foreground"
+                  : "text-muted-foreground",
+            )}
+          >
+            {text}
+          </span>
+          {pendingChecked && completedAt && (
+            <span className="text-[10px] text-muted-foreground/50 mt-0.5 block">
+              {relativeTime(completedAt)}
+            </span>
           )}
-        >
-          {text}
         </span>
 
         {clientOwned && !isAdmin && (

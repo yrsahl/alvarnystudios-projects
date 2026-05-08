@@ -18,6 +18,7 @@ interface Props {
   brief: BriefData;
   isAdmin: boolean;
   initialStepsByPhase: Record<number, boolean[]>;
+  initialCompletedAtByPhase: Record<number, (string | null)[]>;
   initialAdminNotesByPhase: Record<number, string>;
   initialClientNotesByPhase: Record<number, string>;
   artifactsByPhase: Record<number, Artifact[]>;
@@ -30,20 +31,29 @@ export function ProjectTimeline({
   brief,
   isAdmin,
   initialStepsByPhase,
+  initialCompletedAtByPhase,
   initialAdminNotesByPhase,
   initialClientNotesByPhase,
   artifactsByPhase,
 }: Props) {
   const [stepsByPhase, setStepsByPhase] = useState(initialStepsByPhase);
+  const [completedAtByPhase, setCompletedAtByPhase] = useState(initialCompletedAtByPhase);
 
   const allPhases = getPhases(projectType);
-  const visiblePhases = isAdmin ? allPhases : allPhases.filter((p) => p.n > 0);
+  // Show all phases to both admin and client — phase 0 is the proposal/brief workspace
+  const visiblePhases = allPhases;
 
-  const completedSteps = visiblePhases.reduce(
-    (sum, phase) => sum + (stepsByPhase[phase.n] ?? []).filter(Boolean).length,
+  // Clients only see progress on steps they own
+  const completedSteps = visiblePhases.reduce((sum, phase) => {
+    const steps = stepsByPhase[phase.n] ?? [];
+    return sum + steps.filter((done, i) =>
+      done && (isAdmin || (phase.steps[i]?.clientOwned ?? false))
+    ).length;
+  }, 0);
+  const totalSteps = visiblePhases.reduce((sum, phase) =>
+    sum + (isAdmin ? phase.steps.length : phase.steps.filter((s) => s.clientOwned).length),
     0,
   );
-  const totalSteps = visiblePhases.reduce((sum, phase) => sum + phase.steps.length, 0);
 
   // Auto-open the first phase that has incomplete client tasks
   const clientActivePhaseN = isAdmin
@@ -61,6 +71,12 @@ export function ProjectTimeline({
     setStepsByPhase((prev) => ({
       ...prev,
       [phaseNumber]: prev[phaseNumber].map((v, i) => (i === stepIndex ? checked : v)),
+    }));
+    setCompletedAtByPhase((prev) => ({
+      ...prev,
+      [phaseNumber]: (prev[phaseNumber] ?? []).map((v, i) =>
+        i === stepIndex ? (checked ? new Date().toISOString() : null) : v
+      ),
     }));
   }
 
@@ -85,6 +101,7 @@ export function ProjectTimeline({
             key={phase.n}
             phase={phase}
             checkedSteps={stepsByPhase[phase.n] ?? []}
+            completedAtSteps={completedAtByPhase[phase.n] ?? []}
             initialAdminNotes={initialAdminNotesByPhase[phase.n] ?? ""}
             initialClientNotes={initialClientNotesByPhase[phase.n] ?? ""}
             isAdmin={isAdmin}

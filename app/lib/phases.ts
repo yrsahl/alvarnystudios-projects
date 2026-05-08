@@ -21,6 +21,7 @@ export interface Phase {
   clientArtifactHint: string;
   handoverNote: string;
   clientGuidance: string;
+  isService?: boolean;
 }
 
 // ── Website ────────────────────────────────────────────────────────────────
@@ -31,7 +32,9 @@ export const WEBSITE_PHASES: Phase[] = [
     color: "#5B8CFF",
     badge: "~1 day",
     title: "Client Discovery",
+    clientTitle: "Getting Started",
     sub: "Understand the business before touching code",
+    clientSub: "Help us understand your goals",
     steps: [
       { text: "30-min discovery call — goals, customers, competitors" },
       { text: "Audit current online presence (Google Business, socials, existing site)" },
@@ -44,7 +47,8 @@ export const WEBSITE_PHASES: Phase[] = [
     clientArtifactHint: "e.g. Existing logo, brand guidelines, competitor sites you like",
     handoverNote:
       "Once the brief is filled in, send the client their project link so they can track progress and upload brand assets.",
-    clientGuidance: "",
+    clientGuidance:
+      "Welcome to your project portal! To get things moving, upload any existing brand files you have — logo, inspiration images, or competitor sites you like. This gives your designer everything needed to get started.",
   },
   {
     n: 1,
@@ -185,6 +189,7 @@ export const WEBSITE_PHASES: Phase[] = [
       "Send the monthly report and flag any performance issues proactively. Schedule a brief call if there are strategic decisions.",
     clientGuidance:
       "We handle your site each month — updates, performance, and growth. Share content requests, new photos, or upcoming promotions below and we'll take it from there.",
+    isService: true,
   },
 ];
 
@@ -196,7 +201,9 @@ export const SHOP_PHASES: Phase[] = [
     color: "#5B8CFF",
     badge: "1–2 hrs",
     title: "Discovery & Scope",
+    clientTitle: "Getting Started",
     sub: "Define store structure, platform, and product model",
+    clientSub: "Help us scope your store",
     steps: [
       { text: "Discovery call: product catalog size, pricing model, shipping needs" },
       { text: "Decide platform: Shopify (simpler) vs WooCommerce (more control)" },
@@ -211,7 +218,8 @@ export const SHOP_PHASES: Phase[] = [
     clientArtifactHint: "e.g. Product spreadsheet with prices, existing brand files, competitor shops you like",
     handoverNote:
       "Once platform is decided, send the client their project link and the product import template. They should prepare their catalog before Phase 2.",
-    clientGuidance: "",
+    clientGuidance:
+      "Welcome to your project portal! To get started, upload your product catalog (a spreadsheet works great) and any existing brand files — logo, inspiration, or competitor shops you like. The more you share upfront, the faster we can build.",
   },
   {
     n: 1,
@@ -358,6 +366,7 @@ export const SHOP_PHASES: Phase[] = [
       "Send the monthly report and flag revenue dips or conversion issues proactively. Schedule a quick call if there are strategic decisions.",
     clientGuidance:
       "We handle your store's monthly maintenance and growth. Share new products, upcoming promotions, or anything you'd like changed below — we'll handle the rest.",
+    isService: true,
   },
 ];
 

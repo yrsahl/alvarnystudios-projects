@@ -44,32 +44,38 @@ function loadGoogleFont(name: string) {
 }
 
 function applyBrandPreview(brand: BrandData) {
-  const root = document.documentElement;
   const rgb = hexToRgb(brand.bgColor);
   const luminance = rgb ? (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255 : 0;
   const isLight = luminance > 0.5;
   const surfaceTarget = isLight ? 0 : 255;
 
-  // Studio tokens
-  root.style.setProperty("--background", brand.bgColor);
-  root.style.setProperty("--foreground", brand.textColor);
-  root.style.setProperty("--card", blendHex(brand.bgColor, surfaceTarget, 0.06));
-  root.style.setProperty("--card-foreground", brand.textColor);
-  root.style.setProperty("--secondary", blendHex(brand.bgColor, surfaceTarget, 0.10));
-  root.style.setProperty("--muted", blendHex(brand.bgColor, surfaceTarget, 0.10));
-  root.style.setProperty("--muted-foreground", isLight ? "#555555" : "#8c8b84");
-  root.style.setProperty("--border", blendHex(brand.bgColor, surfaceTarget, 0.14));
-  root.style.setProperty("--input", blendHex(brand.bgColor, surfaceTarget, 0.10));
-  root.style.setProperty("--primary", brand.primaryColor);
+  const props: [string, string][] = [
+    ["--background", brand.bgColor],
+    ["--foreground", brand.textColor],
+    ["--card", blendHex(brand.bgColor, surfaceTarget, 0.06)],
+    ["--card-foreground", brand.textColor],
+    ["--secondary", blendHex(brand.bgColor, surfaceTarget, 0.10)],
+    ["--muted", blendHex(brand.bgColor, surfaceTarget, 0.10)],
+    ["--muted-foreground", isLight ? "#555555" : "#8c8b84"],
+    ["--border", blendHex(brand.bgColor, surfaceTarget, 0.14)],
+    ["--input", blendHex(brand.bgColor, surfaceTarget, 0.10)],
+    ["--primary", brand.primaryColor],
+  ];
+
+  // Apply to root and to .client-portal if present (client portal overrides root via class)
+  const targets: HTMLElement[] = [document.documentElement];
+  const portal = document.querySelector(".client-portal");
+  if (portal instanceof HTMLElement) targets.push(portal);
+  for (const target of targets) props.forEach(([k, v]) => target.style.setProperty(k, v));
 
   const headingFamily = brand.headingFont.split(",")[0].trim();
   const bodyFamily = brand.bodyFont.split(",")[0].trim();
   if (headingFamily) {
-    root.style.setProperty("--font-sans", `"${headingFamily}", ui-sans-serif, system-ui, sans-serif`);
+    document.documentElement.style.setProperty("--font-sans", `"${headingFamily}", ui-sans-serif, system-ui, sans-serif`);
     loadGoogleFont(headingFamily);
   }
   if (bodyFamily) {
-    root.style.setProperty("--font-body", `"${bodyFamily}", ui-sans-serif, system-ui, sans-serif`);
+    document.documentElement.style.setProperty("--font-body", `"${bodyFamily}", ui-sans-serif, system-ui, sans-serif`);
     loadGoogleFont(bodyFamily);
   }
 }
@@ -86,11 +92,12 @@ export function BrandValuesPanel({ brand }: Props) {
   // Clean up inline overrides when panel closes, restoring the Studio theme
   useEffect(() => {
     return () => {
-      const root = document.documentElement;
-      ["--background", "--foreground", "--card", "--card-foreground", "--secondary",
-       "--muted", "--muted-foreground", "--border", "--input", "--primary"].forEach((p) =>
-        root.style.removeProperty(p),
-      );
+      const keys = ["--background", "--foreground", "--card", "--card-foreground", "--secondary",
+        "--muted", "--muted-foreground", "--border", "--input", "--primary"];
+      const targets: HTMLElement[] = [document.documentElement];
+      const portal = document.querySelector(".client-portal");
+      if (portal instanceof HTMLElement) targets.push(portal);
+      for (const target of targets) keys.forEach((p) => target.style.removeProperty(p));
     };
   }, []);
 

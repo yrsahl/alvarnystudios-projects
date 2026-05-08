@@ -22,6 +22,7 @@ function mergeNotes(base: string, local: string, remote: string): string {
 interface Props {
   phase: Phase;
   checkedSteps: boolean[];
+  completedAtSteps: (string | null)[];
   initialAdminNotes: string;
   initialClientNotes: string;
   isAdmin: boolean;
@@ -38,6 +39,7 @@ const textareaClass =
 export function PhaseCard({
   phase,
   checkedSteps,
+  completedAtSteps,
   initialAdminNotes,
   initialClientNotes,
   isAdmin,
@@ -239,8 +241,25 @@ export function PhaseCard({
                 {/* Brief panel for phase 0 (if client ever sees it) */}
                 {phase.n === 0 && brief && <ProjectBriefPanel brief={brief} isAdmin={false} />}
 
-                {/* Your tasks */}
-                {hasClientTasks ? (
+                {/* Brand panel for phase 1 — clients fill in their brand values */}
+                {phase.n === 1 && brand && <BrandValuesPanel brand={brand} />}
+
+                {/* Service phases (retainer): show what's included instead of a task list */}
+                {phase.isService ? (
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                      What's included
+                    </h4>
+                    <ul className="space-y-2">
+                      {phase.steps.map((step, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                          <span className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: phase.color }} />
+                          {step.text}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : hasClientTasks ? (
                   <div>
                     <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
                       Your tasks
@@ -253,6 +272,7 @@ export function PhaseCard({
                           index={i}
                           phaseNumber={phase.n}
                           checked={checkedSteps[i] ?? false}
+                          completedAt={completedAtSteps[i] ?? null}
                           color={phase.color}
                           clientOwned={true}
                           isAdmin={false}
@@ -318,6 +338,7 @@ export function PhaseCard({
                           index={i}
                           phaseNumber={phase.n}
                           checked={checkedSteps[i] ?? false}
+                          completedAt={completedAtSteps[i] ?? null}
                           color={phase.color}
                           clientOwned={step.clientOwned ?? false}
                           isAdmin={true}
