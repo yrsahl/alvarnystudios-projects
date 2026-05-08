@@ -135,6 +135,24 @@ export async function action({ request, params }: Route.ActionArgs) {
     return { ok: true };
   }
 
+  if (intent === "update-brand") {
+    const vals = {
+      primaryColor: String(formData.get("primaryColor") || "#5B8CFF"),
+      secondaryColor: String(formData.get("secondaryColor") || "#A78BFA"),
+      accentColor: String(formData.get("accentColor") || "#34D399"),
+      bgColor: String(formData.get("bgColor") || "#0e0e0f"),
+      textColor: String(formData.get("textColor") || "#F0EFE8"),
+      headingFont: String(formData.get("headingFont") || ""),
+      bodyFont: String(formData.get("bodyFont") || ""),
+      updatedAt: new Date(),
+    };
+    await db
+      .insert(brandValues)
+      .values({ projectId: project.id, ...vals })
+      .onConflictDoUpdate({ target: brandValues.projectId, set: vals });
+    return { ok: true };
+  }
+
   if (intent === "add-artifact") {
     const from = String(formData.get("from"));
     if (from !== "client") throw new Response("Forbidden", { status: 403 });

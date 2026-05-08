@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { Globe } from "lucide-react";
-import { Link, redirect } from "react-router";
-import { ThemeToggle } from "~/components/ThemeToggle";
+import { Link, redirect, useFetcher } from "react-router";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
+import { ThemeToggle } from "~/components/ThemeToggle";
 import { db } from "~/db/index.server";
 import { brandValues, phaseArtifacts, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
 import { getPhases, type ProjectType } from "~/lib/phases";
@@ -11,7 +11,7 @@ import type { Route } from "./+types/project";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   const name = loaderData?.project?.name ?? "Project";
-  return [{ title: `${name} — Studio` }];
+  return [{ title: `${name} — Projects` }];
 }
 
 export async function loader({ params, request }: Route.LoaderArgs) {
@@ -51,7 +51,10 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     clientNotesByPhase[phase.n] = rec?.clientNotes ?? "";
   }
 
-  const artifactsByPhase: Record<number, { id: string; from: "admin" | "client"; label: string; url: string; createdAt: string }[]> = {};
+  const artifactsByPhase: Record<
+    number,
+    { id: string; from: "admin" | "client"; label: string; url: string; createdAt: string }[]
+  > = {};
   for (const phase of phases) {
     artifactsByPhase[phase.n] = artifactRecords
       .filter((a) => a.phaseNumber === phase.n)
@@ -150,7 +153,14 @@ export async function action({ request, params }: Route.ActionArgs) {
     const setField = noteType === "admin" ? { adminNotes: notes } : { clientNotes: notes };
     await db
       .insert(phaseNotes)
-      .values({ projectId: project.id, phaseNumber, adminNotes: "", clientNotes: "", ...setField, updatedAt: new Date() })
+      .values({
+        projectId: project.id,
+        phaseNumber,
+        adminNotes: "",
+        clientNotes: "",
+        ...setField,
+        updatedAt: new Date(),
+      })
       .onConflictDoUpdate({
         target: [phaseNotes.projectId, phaseNotes.phaseNumber],
         set: { ...setField, updatedAt: new Date() },
@@ -205,30 +215,52 @@ export async function action({ request, params }: Route.ActionArgs) {
 
   if (intent === "delete-artifact") {
     const artifactId = String(formData.get("artifactId"));
-    await db.delete(phaseArtifacts).where(
-      eq(phaseArtifacts.id, artifactId),
-    );
+    await db.delete(phaseArtifacts).where(eq(phaseArtifacts.id, artifactId));
     return { ok: true };
+  }
+
+  if (intent === "delete-project") {
+    await db.delete(projects).where(eq(projects.id, project.id));
+    return redirect("/");
   }
 
   throw new Response("Unknown intent", { status: 400 });
 }
 
 export default function ProjectPage({ loaderData }: Route.ComponentProps) {
-  const { project, projectType, brand, brief, isAdmin, stepsByPhase, adminNotesByPhase, clientNotesByPhase, artifactsByPhase } = loaderData;
+  const {
+    project,
+    projectType,
+    brand,
+    brief,
+    isAdmin,
+    stepsByPhase,
+    adminNotesByPhase,
+    clientNotesByPhase,
+    artifactsByPhase,
+  } = loaderData;
+  const deleteFetcher = useFetcher();
+
+  function handleDelete() {
+    if (!confirm(`Delete "${project.name}"? This cannot be undone.`)) return;
+    deleteFetcher.submit({ intent: "delete-project" }, { method: "post" });
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
       {/* Navbar */}
       <header className="sticky top-0 z-50 flex h-14 items-center gap-3 justify-between border-b border-border bg-background px-4 sm:px-6">
-        <Link to="/" className="flex items-center gap-2 shrink-0">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground">
-            <span className="text-sm font-bold text-background">S</span>
+        <div className="flex items-center gap-3 shrink-0">
+          <Link to="/" className="">
+            <div className="flex h-7 w-10 items-center justify-center rounded-md bg-foreground">
+              <span className="text-sm font-bold text-background">AS</span>
+            </div>
+          </Link>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground/40">/</span>
+            <span className="hidden sm:inline text-sm font-semibold text-foreground">{project.name}</span>
           </div>
-          <span className="hidden sm:inline text-sm font-semibold text-foreground">Studio</span>
-        </Link>
-
-        <p className="text-sm font-medium text-foreground truncate min-w-0">{project.name}</p>
+        </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
           <a
@@ -241,12 +273,14 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
             <Globe className="h-3.5 w-3.5" />
             <span className="hidden md:inline">Client view</span>
           </a>
-          <Link
-            to="/"
-            className="hidden sm:block rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          <button
+            onClick={handleDelete}
+            disabled={deleteFetcher.state !== "idle"}
+            className="rounded-md px-2 sm:px-3 py-1.5 text-sm text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+            title="Delete project"
           >
-            ← Dashboard
-          </Link>
+            {deleteFetcher.state !== "idle" ? "Deleting…" : "Delete"}
+          </button>
           <ThemeToggle />
         </div>
       </header>

@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { ChevronRight, LayoutDashboard, Plus, Search, UserPlus } from "lucide-react";
+import { ChevronRight, CodeIcon, LayoutDashboard, Plus, Search, ShoppingCart, UserPlus } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useMemo, useState } from "react";
 import { Form, redirect } from "react-router";
@@ -26,7 +26,7 @@ const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
 };
 
 export function meta(_: Route.MetaArgs) {
-  return [{ title: "Studio" }];
+  return [{ title: "Projects" }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -252,9 +252,9 @@ function PhaseChart({ phases, projects }: { phases: ReturnType<typeof getPhases>
       </svg>
       <div className="grid grid-cols-2 gap-x-6 gap-y-2">
         {slices.map((s) => (
-          <div key={s.phase.n} className="flex items-center gap-2" title={s.phase.title}>
+          <div key={s.phase.n} className="flex items-center gap-2 w-36" title={s.phase.title}>
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.phase.color }} />
-            <span className="text-sm text-muted-foreground truncate max-w-20">{s.phase.title.split(" ")[0]}</span>
+            <span className="text-sm text-muted-foreground truncate max-w-28">{s.phase.title.split(" ")[0]}</span>
             <span className="ml-auto text-sm font-semibold tabular-nums pl-2" style={{ color: s.phase.color }}>
               {s.count}
             </span>
@@ -342,31 +342,31 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <div className="flex min-h-screen flex-col">
         {/* Navbar */}
         <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 sm:px-6 gap-6">
-          <a className="flex items-center gap-2 shrink-0" href="/">
+          <a className="flex items-center gap-3 shrink-0" href="/">
             <div className="flex h-7 w-10 items-center justify-center rounded-md bg-foreground">
               <span className="text-sm font-bold text-background">AS</span>
             </div>
-            <span className="hidden sm:inline text-sm font-semibold text-foreground">Studio</span>
+            <span className="hidden sm:inline text-sm font-semibold text-foreground">Projects</span>
           </a>
 
-          <div className="flex items-center gap-1 bg-secondary rounded-lg p-1 w-fit">
-            {TYPE_ORDER.map((type) => (
-              <button
-                key={type}
-                onClick={() => setActiveType(type)}
-                className={cn(
-                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer",
-                  activeType === type
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {PROJECT_TYPE_LABELS[type]}
-              </button>
-            ))}
-          </div>
-
-          <div className="px-8 hidden sm:flex flex-1 items-center justify-center min-w-0">
+          <div className="px-8 hidden sm:flex flex-1 items-center justify-center min-w-0 gap-10">
+            <div className="flex items-center gap-1 bg-secondary rounded-lg p-1 w-fit">
+              {TYPE_ORDER.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setActiveType(type)}
+                  className={cn(
+                    "px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer",
+                    activeType === type
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {PROJECT_TYPE_LABELS[type] === "Website" && <CodeIcon className="w-3.5 h-3.5" />}
+                  {PROJECT_TYPE_LABELS[type] === "Shop" && <ShoppingCart className="w-3.5 h-3.5" />}
+                </button>
+              ))}
+            </div>
             <div className="relative w-full max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -559,7 +559,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   {search ? "No projects match" : "No projects yet"}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {search ? "Try a different search term" : "Click \"New Project\" to get started"}
+                  {search ? "Try a different search term" : 'Click "New Project" to get started'}
                 </p>
               </div>
             ) : (
