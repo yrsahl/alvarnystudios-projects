@@ -43,6 +43,13 @@ export const WEBSITE_PHASES: Phase[] = [
       { text: "30-min discovery call — goals, customers, competitors" },
       { text: "Audit current online presence (Google Business, socials, existing site)" },
       { text: "Fill in project brief below" },
+      {
+        text: "Set your brand colours and font style",
+        clientText: "Set your brand colours and font style below",
+        clientOwned: true,
+        clientTaskType: "confirm",
+        actionHint: "Use the colour picker and font fields in the Brand section above to set your brand identity.",
+      },
       { text: "Send project overview link to client" },
     ],
     tools: ["Notion", "Loom", "Google Meet"],
@@ -68,7 +75,8 @@ export const WEBSITE_PHASES: Phase[] = [
         clientText: "Review the design preview and share your feedback",
         clientOwned: true,
         clientTaskType: "design-review",
-        actionHint: "Open the preview link your designer shared above, look through it, then approve or request changes.",
+        actionHint:
+          "Open the preview link your designer shared above, look through it, then approve or request changes.",
       },
       { text: "Generate hero images and visuals with Midjourney or Ideogram" },
       {
@@ -76,7 +84,8 @@ export const WEBSITE_PHASES: Phase[] = [
         clientText: "Confirm your final brand colours",
         clientOwned: true,
         clientTaskType: "design-review",
-        actionHint: "Review the design preview and leave colour feedback in the notes — your designer handles the adjustments.",
+        actionHint:
+          "Review the design preview and leave colour feedback in the notes — your designer handles the adjustments.",
       },
     ],
     tools: ["v0 by Vercel", "Looka", "Brandmark", "Midjourney", "Ideogram"],
@@ -105,7 +114,8 @@ export const WEBSITE_PHASES: Phase[] = [
         clientText: "Add your content — text, images, and service details — in the CMS",
         clientOwned: true,
         clientTaskType: "link-action",
-        actionHint: "Your designer will share the CMS link above once the site is set up — click it to open the editor.",
+        actionHint:
+          "Your designer will share the CMS link above once the site is set up — click it to open the editor.",
       },
       { text: "Wire up contact form (Resend) and Google Maps embed" },
       { text: "Add LocalBusiness JSON-LD schema for SEO" },
@@ -226,6 +236,13 @@ export const SHOP_PHASES: Phase[] = [
       { text: "Clarify payment methods: Stripe, PayPal, Klarna, invoice, etc." },
       { text: "Confirm VAT/tax setup — Germany: 19% MwSt, B2B vs B2C rules" },
       { text: "Agree on launch timeline and content delivery date" },
+      {
+        text: "Set your brand colours and font style",
+        clientText: "Set your brand colours and font style below",
+        clientOwned: true,
+        clientTaskType: "confirm",
+        actionHint: "Use the colour picker and font fields in the Brand section above to set your brand identity.",
+      },
       { text: "Send project link to client and request product data (CSV + images)" },
     ],
     tools: ["Notion", "Google Meet", "Loom"],
@@ -256,14 +273,16 @@ export const SHOP_PHASES: Phase[] = [
         clientText: "Review the store design preview and share what to keep and what to change",
         clientOwned: true,
         clientTaskType: "design-review",
-        actionHint: "Open the store preview link your designer shared above, explore it, then approve or request changes.",
+        actionHint:
+          "Open the store preview link your designer shared above, explore it, then approve or request changes.",
       },
       {
         text: "Finalise brand colours and typography",
         clientText: "Confirm your brand colours and fonts",
         clientOwned: true,
         clientTaskType: "design-review",
-        actionHint: "Review the store preview and leave colour/font feedback in the notes — your designer handles the adjustments.",
+        actionHint:
+          "Review the store preview and leave colour/font feedback in the notes — your designer handles the adjustments.",
       },
     ],
     tools: ["v0 by Vercel", "Figma", "Looka", "Brandmark", "Midjourney", "Shopify"],
