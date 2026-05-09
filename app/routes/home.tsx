@@ -142,7 +142,14 @@ export async function action({ request }: Route.ActionArgs) {
     const name = lead.businessName || lead.name;
     const [project] = await db
       .insert(projects)
-      .values({ slug, name, type: lead.projectType, status: "proposal", clientName: lead.name, businessName: lead.businessName })
+      .values({
+        slug,
+        name,
+        type: lead.projectType,
+        status: "proposal",
+        clientName: lead.name,
+        businessName: lead.businessName,
+      })
       .returning();
     await db.insert(brandValues).values({ projectId: project.id });
     await db.delete(leadsTable).where(eq(leadsTable.id, leadId));
@@ -439,9 +446,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <UserPlus className="h-4 w-4" />
-                    Leads
+                    <span>Leads</span>
                   </div>
                   {typeLeads.length > 0 && (
                     <span className="text-xs font-semibold tabular-nums bg-foreground text-background rounded-full px-1.5 py-0.5 min-w-5 text-center">
