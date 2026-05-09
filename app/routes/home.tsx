@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { ChevronRight, CodeIcon, LayoutDashboard, Plus, Search, ShoppingCart, UserPlus } from "lucide-react";
+import { ChevronRight, CodeIcon, Globe, LayoutDashboard, Plus, Search, ShoppingCart, UserPlus } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Form, redirect } from "react-router";
@@ -387,14 +387,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => setShowLeadModal(true)}
+            <a
+              href="/view"
               className="flex items-center gap-1.5 rounded-md px-2 sm:px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground cursor-pointer"
-              title="Add lead"
+              title="Client Portal"
             >
-              <UserPlus className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Add Lead</span>
-            </button>
+              <Globe className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Client Portal</span>
+            </a>
             <button
               onClick={() => setShowProjectModal(true)}
               className="flex items-center gap-1.5 rounded-md bg-foreground px-2 sm:px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90 cursor-pointer"
@@ -429,25 +429,34 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 Overview
               </button>
 
-              <button
-                onClick={() => scrollTo("leads", "leads")}
-                className={cn(
-                  "flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  lastClicked === "leads"
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Leads
-                </div>
-                {typeLeads.length > 0 && (
-                  <span className="text-xs font-semibold tabular-nums bg-foreground text-background rounded-full px-1.5 py-0.5 min-w-5 text-center">
-                    {typeLeads.length}
-                  </span>
-                )}
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => scrollTo("leads", "leads")}
+                  className={cn(
+                    "flex flex-1 items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    lastClicked === "leads"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Leads
+                  </div>
+                  {typeLeads.length > 0 && (
+                    <span className="text-xs font-semibold tabular-nums bg-foreground text-background rounded-full px-1.5 py-0.5 min-w-5 text-center">
+                      {typeLeads.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowLeadModal(true)}
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
+                  title="Add lead"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
 
               <div className="my-3 px-3">
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Phases</span>
