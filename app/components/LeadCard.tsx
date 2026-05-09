@@ -13,7 +13,10 @@ export interface Lead {
   phone: string;
   projectType: ProjectType;
   notes: string;
+  source: string;
   status: LeadStatus;
+  bookedDate: string | null;
+  bookedSlot: string | null;
   createdAt: string;
 }
 
@@ -168,6 +171,13 @@ export function LeadCard({ lead }: Props) {
           </a>
         )}
       </div>
+
+      {lead.bookedDate && lead.bookedSlot && (
+        <div className="flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 w-fit">
+          <span>📅</span>
+          <span>Call {lead.bookedDate} · {lead.bookedSlot} CET</span>
+        </div>
+      )}
 
       {lead.notes && (
         <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{lead.notes}</p>

@@ -78,7 +78,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     phone: l.phone,
     projectType: (l.projectType ?? "website") as ProjectType,
     notes: l.notes,
+    source: l.source,
     status: l.status as Lead["status"],
+    bookedDate: l.bookedDate ?? null,
+    bookedSlot: l.bookedSlot ?? null,
     createdAt: l.createdAt.toISOString(),
   }));
 

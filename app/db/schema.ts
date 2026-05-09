@@ -105,8 +105,10 @@ export const leads = pgTable("leads", {
   phone: text("phone").notNull().default(""),
   projectType: text("project_type").notNull().default("website"),
   notes: text("notes").notNull().default(""),
-  source: text("source").notNull().default("admin"), // "admin" | "form"
+  source: text("source").notNull().default("admin"), // "admin" | "form" | "booking"
   status: text("status").notNull().default("new"), // "new" | "contacted" | "proposal" | "converted" | "lost"
+  bookedDate: date("booked_date"),
+  bookedSlot: text("booked_slot"),
   convertedProjectId: uuid("converted_project_id").references(() => projects.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
