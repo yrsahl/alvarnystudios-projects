@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   date,
@@ -113,6 +114,29 @@ export const leads = pgTable("leads", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const bookings = pgTable(
+  "bookings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    projectType: text("project_type").notNull().default("website"),
+    notes: text("notes").notNull().default(""),
+    bookedDate: date("booked_date").notNull(),
+    bookedSlot: text("booked_slot").notNull(),
+    status: text("status").notNull().default("pending"), // "pending" | "confirmed" | "declined"
+    leadId: uuid("lead_id").references(() => leads.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // Only one active booking per slot — declined slots can be rebooked
+    uniqueIndex("bookings_date_slot_active_idx")
+      .on(t.bookedDate, t.bookedSlot)
+      .where(sql`status != 'declined'`),
+  ],
+);
 
 export const phaseArtifacts = pgTable("phase_artifacts", {
   id: uuid("id").defaultRandom().primaryKey(),

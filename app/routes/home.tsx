@@ -1,8 +1,10 @@
+import { Resend } from "resend";
 import { desc, eq } from "drizzle-orm";
 import { ChevronRight, CodeIcon, Globe, LayoutDashboard, Plus, Search, ShoppingCart, UserPlus } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Form, redirect } from "react-router";
+import { BookingCard, type Booking } from "~/components/BookingCard";
 import { LeadCard, type Lead, type LeadStatus } from "~/components/LeadCard";
 import { NewLeadModal } from "~/components/NewLeadModal";
 import { NewProjectModal } from "~/components/NewProjectModal";
@@ -10,7 +12,7 @@ import { ProjectCard } from "~/components/ProjectCard";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { Input } from "~/components/ui/input";
 import { db } from "~/db/index.server";
-import { brandValues, leads as leadsTable, phaseSteps, projects } from "~/db/schema";
+import { bookings as bookingsTable, brandValues, leads as leadsTable, phaseSteps, projects } from "~/db/schema";
 import { getPhases, getTotalSteps, PROJECT_TYPE_LABELS, TOOL_URLS, type ProjectType } from "~/lib/phases";
 import { destroySession, getSession, requireAdmin } from "~/lib/session.server";
 import { cn } from "~/lib/utils";
@@ -30,13 +32,16 @@ export function meta(_: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   await requireAdmin(request);
 
-  const [allProjects, completedStepRows, allLeads] = await Promise.all([
+  const [allProjects, completedStepRows, allLeads, pendingBookings] = await Promise.all([
     db.select().from(projects).orderBy(desc(projects.createdAt)),
     db
       .select({ projectId: phaseSteps.projectId, phaseNumber: phaseSteps.phaseNumber })
       .from(phaseSteps)
       .where(eq(phaseSteps.completed, true)),
     db.select().from(leadsTable).orderBy(desc(leadsTable.createdAt)),
+    db.select().from(bookingsTable)
+      .where(eq(bookingsTable.status, "pending"))
+      .orderBy(desc(bookingsTable.createdAt)),
   ]);
 
   const projectsWithMeta = allProjects.map((project) => {
@@ -85,7 +90,18 @@ export async function loader({ request }: Route.LoaderArgs) {
     createdAt: l.createdAt.toISOString(),
   }));
 
-  return { projects: projectsWithMeta, leads: leadsData };
+  const bookingsData = pendingBookings.map((b) => ({
+    id: b.id,
+    name: b.name,
+    email: b.email,
+    projectType: (b.projectType ?? "website") as ProjectType,
+    notes: b.notes,
+    bookedDate: b.bookedDate,
+    bookedSlot: b.bookedSlot,
+    createdAt: b.createdAt.toISOString(),
+  }));
+
+  return { projects: projectsWithMeta, leads: leadsData, bookings: bookingsData };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -177,6 +193,70 @@ export async function action({ request }: Route.ActionArgs) {
   if (intent === "delete-lead") {
     const leadId = String(formData.get("leadId"));
     await db.delete(leadsTable).where(eq(leadsTable.id, leadId));
+    return { ok: true };
+  }
+
+  if (intent === "accept-booking") {
+    const bookingId = String(formData.get("bookingId"));
+    const booking = await db.query.bookings.findFirst({ where: eq(bookingsTable.id, bookingId) });
+    if (!booking) return { error: "Booking not found." };
+
+    const prettyDate = `${booking.bookedDate} · ${booking.bookedSlot} CET`;
+
+    const [lead] = await db.insert(leadsTable).values({
+      name: booking.name,
+      email: booking.email,
+      projectType: booking.projectType,
+      notes: booking.notes,
+      source: "booking",
+      status: "contacted",
+      bookedDate: booking.bookedDate,
+      bookedSlot: booking.bookedSlot,
+    }).returning();
+
+    await db.update(bookingsTable)
+      .set({ status: "confirmed", leadId: lead.id, updatedAt: new Date() })
+      .where(eq(bookingsTable.id, bookingId));
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    await resend.emails.send({
+      from: "Alvarny Studios <hello@alvarnystudios.com>",
+      to: booking.email,
+      subject: "Your intro call is confirmed — Alvarny Studios",
+      html: `
+        <p>Hi ${booking.name},</p>
+        <p>Your call is confirmed for <strong>${prettyDate}</strong>. Looking forward to it.</p>
+        <p>We'll send a Google Meet link shortly. Feel free to reply with any questions beforehand.</p>
+        <p>— Alvarny Studios</p>
+      `,
+    });
+
+    return { ok: true };
+  }
+
+  if (intent === "decline-booking") {
+    const bookingId = String(formData.get("bookingId"));
+    const booking = await db.query.bookings.findFirst({ where: eq(bookingsTable.id, bookingId) });
+    if (!booking) return { error: "Booking not found." };
+
+    await db.update(bookingsTable)
+      .set({ status: "declined", updatedAt: new Date() })
+      .where(eq(bookingsTable.id, bookingId));
+
+    const prettyDate = `${booking.bookedDate} · ${booking.bookedSlot} CET`;
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    await resend.emails.send({
+      from: "Alvarny Studios <hello@alvarnystudios.com>",
+      to: booking.email,
+      subject: "About your call request — Alvarny Studios",
+      html: `
+        <p>Hi ${booking.name},</p>
+        <p>Unfortunately we're not able to take the call at <strong>${prettyDate}</strong>.</p>
+        <p>Please <a href="https://alvarnystudios.com/#book">pick another slot</a> or reach us directly at <a href="mailto:hello@alvarnystudios.com">hello@alvarnystudios.com</a>.</p>
+        <p>— Alvarny Studios</p>
+      `,
+    });
+
     return { ok: true };
   }
 
@@ -273,7 +353,7 @@ function PhaseChart({ phases, projects }: { phases: ReturnType<typeof getPhases>
 const TYPE_ORDER: ProjectType[] = ["website", "shop"];
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { projects, leads } = loaderData;
+  const { projects, leads, bookings } = loaderData;
   const [activeType, setActiveType] = useState<ProjectType>("website");
   const [search, setSearch] = useState("");
   const [lastClicked, setLastClicked] = useState<string | null>(null);
@@ -531,6 +611,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </div>
               </div>
             </section>
+
+            {/* Booking Requests */}
+            {bookings.length > 0 && (
+              <section className="mb-10">
+                <h2 className="text-lg font-semibold text-blue-400 mb-4">Booking Requests 📅</h2>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {bookings.map((booking) => (
+                    <BookingCard key={booking.id} booking={booking as Booking} />
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Leads */}
             {typeLeads.length > 0 && (
