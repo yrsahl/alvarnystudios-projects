@@ -147,5 +147,25 @@ export const phaseArtifacts = pgTable("phase_artifacts", {
   from: text("from").notNull(), // "admin" | "client"
   label: text("label").notNull(),
   url: text("url").notNull().default(""),
+  artifactType: text("artifact_type").notNull().default("file"), // "preview" | "repo" | "access" | "document" | "recording" | "file"
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+// Phase lifecycle: not_started → in_progress → delivered → approved | revision_requested
+export const phaseStatuses = pgTable(
+  "phase_statuses",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    phaseNumber: integer("phase_number").notNull(),
+    // "not_started" | "in_progress" | "delivered" | "approved" | "revision_requested"
+    status: text("status").notNull().default("not_started"),
+    revisionNote: text("revision_note").notNull().default(""),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("phase_statuses_project_phase_idx").on(t.projectId, t.phaseNumber)],
+);

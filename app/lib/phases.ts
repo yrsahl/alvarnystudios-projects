@@ -1,5 +1,22 @@
 export type ProjectType = "website" | "shop"; // "app" type moved to _templates/app_flow.md
 
+export type ArtifactType = "preview" | "repo" | "access" | "document" | "recording" | "file";
+
+export type PhaseStatus =
+  | "not_started"
+  | "in_progress"
+  | "delivered"
+  | "approved"
+  | "revision_requested";
+
+export interface RequiredArtifact {
+  type: ArtifactType;
+  label: string;
+  prompt: string;    // shown to admin as the nudge
+  hint: string;      // URL input placeholder
+  required: boolean; // true = blocks delivery until present
+}
+
 export interface Step {
   text: string;
   clientText?: string;
@@ -24,8 +41,41 @@ export interface Phase {
   clientArtifactHint: string;
   handoverNote: string;
   clientGuidance: string;
+  clientDeliveredGuidance?: string; // shown when status = "delivered"
+  requiredArtifacts?: RequiredArtifact[];
   isService?: boolean;
   clientUploads?: boolean; // false = hide upload zone for client in this phase
+}
+
+// ── Gate check ─────────────────────────────────────────────────────────────
+
+export function getPhaseGate(
+  phase: Phase,
+  adminArtifacts: { artifactType: string }[],
+): { met: boolean; missing: RequiredArtifact[] } {
+  const required = (phase.requiredArtifacts ?? []).filter((r) => r.required);
+  if (required.length === 0) return { met: true, missing: [] };
+
+  // Count how many of each type are required vs. present
+  const requiredCounts = new Map<ArtifactType, number>();
+  for (const r of required) {
+    requiredCounts.set(r.type, (requiredCounts.get(r.type) ?? 0) + 1);
+  }
+  const existingCounts = new Map<ArtifactType, number>();
+  for (const a of adminArtifacts) {
+    const t = a.artifactType as ArtifactType;
+    existingCounts.set(t, (existingCounts.get(t) ?? 0) + 1);
+  }
+
+  const missing: RequiredArtifact[] = [];
+  for (const [type, needed] of requiredCounts) {
+    const have = existingCounts.get(type) ?? 0;
+    if (have < needed) {
+      const defs = required.filter((r) => r.type === type);
+      missing.push(...defs.slice(have));
+    }
+  }
+  return { met: missing.length === 0, missing };
 }
 
 // ── Website ────────────────────────────────────────────────────────────────
@@ -35,7 +85,7 @@ export const WEBSITE_PHASES: Phase[] = [
     n: 0,
     color: "#5B8CFF",
     badge: "~1 day",
-    title: "Client Discovery",
+    title: "Discovery",
     clientTitle: "Getting Started",
     sub: "Understand the business before touching code",
     clientSub: "Help us understand your goals",
@@ -44,22 +94,22 @@ export const WEBSITE_PHASES: Phase[] = [
       { text: "Audit current online presence (Google Business, socials, existing site)" },
       { text: "Fill in project brief below" },
       {
-        text: "Set your brand colours and font style",
+        text: "Client sets brand colours and font style",
         clientText: "Set your brand colours and font style below",
         clientOwned: true,
         clientTaskType: "confirm",
-        actionHint: "Use the colour picker and font fields in the Brand section above to set your brand identity.",
+        actionHint: "Use the colour picker and font fields in the Brand section above.",
       },
       { text: "Send project overview link to client" },
     ],
     tools: ["Notion", "Loom", "Google Meet"],
     tip: "Key question: What action should every visitor take? (Call, book, buy, visit.) Everything else follows from this.",
-    adminArtifactHint: "e.g. Discovery call recording, competitor research, brief template",
+    adminArtifactHint: "e.g. Discovery call recording, competitor research, brief notes",
     clientArtifactHint: "e.g. Existing logo, brand guidelines, competitor sites you like",
     handoverNote:
       "Once the brief is filled in, send the client their project link so they can track progress and upload brand assets.",
     clientGuidance:
-      "Welcome to your project portal! Fill in the brief below to tell us about your goals, set your brand colours if you already have them, and upload any existing files — logo, inspiration images, or sites you admire. This gives your designer everything needed to get started.",
+      "Welcome to your project portal! Fill in the brief below to tell us about your goals, set your brand colours if you already have them, and upload any existing files — logo, inspiration images, or sites you admire.",
   },
   {
     n: 1,
@@ -69,18 +119,18 @@ export const WEBSITE_PHASES: Phase[] = [
     sub: "Lock in visual identity before writing any code",
     steps: [
       { text: "Generate logo + palette + fonts (Looka or Brandmark) if no brand exists" },
-      { text: "Prompt v0 with the brief to generate initial page layout in React + Tailwind" },
+      { text: "Prompt v0 with the brief to generate initial page layout" },
       {
-        text: "Iterate on v0 output with client via Vercel preview link",
+        text: "Share preview link with client for design review",
         clientText: "Review the design preview and share your feedback",
         clientOwned: true,
         clientTaskType: "design-review",
         actionHint:
-          "Open the preview link your designer shared above, look through it, then approve or request changes.",
+          "Open the preview link your designer shared, look through it, then approve or request changes.",
       },
-      { text: "Generate hero images and visuals with Midjourney or Ideogram" },
+      { text: "Generate hero images and visuals (Midjourney or Ideogram)" },
       {
-        text: "Finalise colours — swap CSS variables in globals.css",
+        text: "Finalise colours with client sign-off",
         clientText: "Confirm your final brand colours",
         clientOwned: true,
         clientTaskType: "design-review",
@@ -90,13 +140,31 @@ export const WEBSITE_PHASES: Phase[] = [
     ],
     tools: ["v0 by Vercel", "Looka", "Brandmark", "Midjourney", "Ideogram"],
     tip: "Looka → brand tokens → v0 layout → Midjourney images. Client sees a working preview before you write a single component.",
-    adminArtifactHint: "e.g. v0 preview link, logo options, colour palette PDF",
-    clientArtifactHint: "e.g. Brand inspiration images, existing logo file, reference sites you like",
+    adminArtifactHint: "e.g. v0 preview link, logo options PDF, colour palette",
+    clientArtifactHint: "e.g. Brand inspiration images, existing logo file, reference sites",
     handoverNote:
-      "Share the Vercel preview link and any logo options. Wait for the client's feedback before finalising colours and generating images.",
+      "Share the design preview and logo options. Client needs to approve before you build.",
     clientGuidance:
       "Your designer is building your brand identity. Once they share a preview below, click through it and leave your thoughts — what you love and what to change.",
+    clientDeliveredGuidance:
+      "Your designer has finished the brand and design. Review the preview below and let them know if it's good to go or what to adjust.",
     clientUploads: false,
+    requiredArtifacts: [
+      {
+        type: "preview",
+        label: "Design Preview",
+        prompt: "Paste the v0, Figma, or Vercel preview link — client needs this to review the design",
+        hint: "v0.dev/... or your-project.vercel.app",
+        required: true,
+      },
+      {
+        type: "file",
+        label: "Logo Options",
+        prompt: "Share logo options as a file or link (Drive, Dropbox, or direct download)",
+        hint: "drive.google.com/... or brandmark.io/...",
+        required: false,
+      },
+    ],
   },
   {
     n: 2,
@@ -107,15 +175,15 @@ export const WEBSITE_PHASES: Phase[] = [
     clientSub: "We're building your website",
     steps: [
       { text: "Clone the Next.js starter template" },
-      { text: "Apply brand colours via CSS variables (globals.css)" },
+      { text: "Apply brand colours via CSS variables" },
       { text: "Set up Sanity project — add client as editor" },
       {
-        text: "Populate all content in Sanity Studio",
+        text: "Share CMS link — client adds content",
         clientText: "Add your content — text, images, and service details — in the CMS",
         clientOwned: true,
         clientTaskType: "link-action",
         actionHint:
-          "Your designer will share the CMS link above once the site is set up — click it to open the editor.",
+          "Your designer will share the CMS link once the site is set up — click it to open the editor.",
       },
       { text: "Wire up contact form (Resend) and Google Maps embed" },
       { text: "Add LocalBusiness JSON-LD schema for SEO" },
@@ -123,23 +191,48 @@ export const WEBSITE_PHASES: Phase[] = [
     ],
     tools: ["Next.js", "Sanity", "Vercel", "Claude Code", "Resend"],
     tip: "The starter template means most of this is config, not coding. Aim for a first working preview within one day.",
-    adminArtifactHint: "e.g. Staging site URL, Sanity Studio link, Vercel preview link",
+    adminArtifactHint: "e.g. Staging site URL, Sanity Studio link, GitHub repo",
     clientArtifactHint: "e.g. Google Drive content folder, existing site copy, product photos",
     handoverNote:
-      "Share the Sanity Studio link so the client can start adding content. Share the staging URL so they can preview progress in real time.",
+      "Share the GitHub repo, staging URL, and Sanity Studio link. Client must add content before final QA.",
     clientGuidance:
-      "We're building your website. Your main job right now is to add your content (text, images, services) to the CMS using the link below — the more complete it is, the faster we can finish.",
+      "We're building your website. Your main job right now is to add your content (text, images, services) to the CMS — the more complete it is, the faster we can finish.",
+    clientDeliveredGuidance:
+      "The site is built and ready for your review. Check the staging URL below, add any missing content via the CMS link, then approve this phase.",
+    requiredArtifacts: [
+      {
+        type: "preview",
+        label: "Staging Site",
+        prompt: "Add the Vercel staging URL so client can preview the build",
+        hint: "your-project.vercel.app",
+        required: true,
+      },
+      {
+        type: "repo",
+        label: "GitHub Repository",
+        prompt: "Add the GitHub repo link",
+        hint: "github.com/your-org/project-name",
+        required: true,
+      },
+      {
+        type: "access",
+        label: "CMS / Sanity Studio",
+        prompt: "Share the Sanity Studio link so client can add their content",
+        hint: "your-project.sanity.studio",
+        required: true,
+      },
+    ],
   },
   {
     n: 3,
     color: "#60C8B0",
     badge: "Half day",
-    title: "Local SEO Setup",
+    title: "SEO Setup",
     sub: "Get them found in local search",
     clientSub: "Getting you found on Google",
     steps: [
       {
-        text: "Optimise Google Business Profile — photos, categories, hours",
+        text: "Client optimises Google Business Profile — photos, categories, hours",
         clientText: "Update your Google Business Profile with photos, categories, and opening hours",
         clientOwned: true,
         clientTaskType: "link-action",
@@ -154,12 +247,37 @@ export const WEBSITE_PHASES: Phase[] = [
     ],
     tools: ["Google Search Console", "Google Analytics 4", "Vercel Analytics"],
     tip: "GBP optimisation often has more immediate local impact than the website itself. Do this in parallel with development.",
-    adminArtifactHint: "e.g. Keyword research doc, GBP optimisation guide, analytics dashboard link",
-    clientArtifactHint: "e.g. Google Business Profile URL, photo library (Drive), service areas list",
+    adminArtifactHint: "e.g. Keyword research doc, Search Console access, Analytics dashboard link",
+    clientArtifactHint: "e.g. Google Business Profile URL, photo library, service areas list",
     handoverNote:
-      "Share the GBP optimisation guide with the client. They need to update their own profile — prompt them clearly, it's their task.",
+      "Share Search Console and Analytics access. Prompt the client clearly to update their Google Business Profile — it's their task.",
     clientGuidance:
-      "We're setting up your Google presence. Your task: update your Google Business Profile with fresh photos, correct hours, and your service categories. See your checklist below.",
+      "We're setting up your Google presence. Your task: update your Google Business Profile with fresh photos, correct hours, and your service categories.",
+    clientDeliveredGuidance:
+      "SEO setup is complete. Review the links below and confirm your Google Business Profile is updated — then approve this phase.",
+    requiredArtifacts: [
+      {
+        type: "access",
+        label: "Google Search Console",
+        prompt: "Add Search Console access or share the verified property link",
+        hint: "search.google.com/search-console",
+        required: true,
+      },
+      {
+        type: "access",
+        label: "Google Analytics 4",
+        prompt: "Share the Analytics dashboard link for client reference",
+        hint: "analytics.google.com",
+        required: false,
+      },
+      {
+        type: "document",
+        label: "Keyword Research",
+        prompt: "Share the keyword research or SEO strategy doc",
+        hint: "notion.so/... or docs.google.com/...",
+        required: false,
+      },
+    ],
   },
   {
     n: 4,
@@ -174,23 +292,48 @@ export const WEBSITE_PHASES: Phase[] = [
       { text: "Add Impressum and Datenschutzerklärung (required in Germany)" },
       { text: "Record a Loom walkthrough of Sanity Studio for the client" },
       { text: "Set up uptime monitoring (Better Uptime — free tier)" },
-      { text: "Deliver a one-page handoff doc: how to update content, who to call" },
+      { text: "Deliver handoff doc: how to update content, who to call" },
       {
-        text: "Connect custom domain in Vercel",
+        text: "Client connects custom domain",
         clientText: "Connect your domain to make the site live",
         clientOwned: true,
         clientTaskType: "confirm",
-        actionHint: "Follow the DNS setup guide your designer shared above.",
+        actionHint: "Follow the DNS setup guide your designer shared below.",
       },
     ],
     tools: ["Vercel", "Loom", "Better Uptime"],
     tip: "German market: Impressum and Datenschutzerklärung are legal requirements. Use datenschutz.org for the privacy policy generator.",
-    adminArtifactHint: "e.g. DNS / nameserver instructions, handoff doc PDF, Loom walkthrough link",
+    adminArtifactHint: "e.g. DNS / nameserver instructions, Loom walkthrough, handoff doc",
     clientArtifactHint: "e.g. Domain registrar name, DNS login details",
     handoverNote:
-      "Share the DNS connection instructions and the Loom walkthrough before going live. Don't mark this done until the domain is live.",
+      "Share the DNS instructions and Loom walkthrough before going live. Don't approve until the domain is live.",
     clientGuidance:
       "Almost there! Your site is ready — just one step from you. Follow the domain connection instructions below, and your site will be live.",
+    clientDeliveredGuidance:
+      "Everything is ready for launch! Watch the Loom walkthrough to learn how to manage your site, follow the DNS instructions to connect your domain, then approve to go live.",
+    requiredArtifacts: [
+      {
+        type: "document",
+        label: "DNS Setup Guide",
+        prompt: "Add the DNS connection instructions for the client's domain registrar",
+        hint: "notion.so/... or paste nameserver instructions",
+        required: true,
+      },
+      {
+        type: "recording",
+        label: "Loom Walkthrough",
+        prompt: "Record the Sanity Studio tutorial — this reduces post-launch support emails significantly",
+        hint: "loom.com/share/...",
+        required: true,
+      },
+      {
+        type: "document",
+        label: "Handoff Document",
+        prompt: "Share a handoff doc covering: how to update content, domain renewals, who to contact",
+        hint: "notion.so/... or docs.google.com/...",
+        required: false,
+      },
+    ],
   },
   {
     n: 5,
@@ -241,18 +384,18 @@ export const SHOP_PHASES: Phase[] = [
         clientText: "Set your brand colours and font style below",
         clientOwned: true,
         clientTaskType: "confirm",
-        actionHint: "Use the colour picker and font fields in the Brand section above to set your brand identity.",
+        actionHint: "Use the colour picker and font fields in the Brand section above.",
       },
       { text: "Send project link to client and request product data (CSV + images)" },
     ],
     tools: ["Notion", "Google Meet", "Loom"],
-    tip: "Critical: confirm B2B vs B2C before building. Different VAT rules, different checkout flows. Shopify fits most B2C shops under 500 products.",
+    tip: "Critical: confirm B2B vs B2C before building. Different VAT rules, different checkout flows.",
     adminArtifactHint: "e.g. Discovery call recording, platform comparison, product import template",
     clientArtifactHint: "e.g. Product spreadsheet with prices, existing brand files, competitor shops you like",
     handoverNote:
-      "Once platform is decided, send the client their project link and the product import template. They should prepare their catalog before Phase 2.",
+      "Once platform is decided, send the client their project link and the product import template.",
     clientGuidance:
-      "Welcome to your project portal! Fill in the brief below to tell us about your store, set your brand colours if you already have them, and upload any existing files — logo, product catalog (a spreadsheet works great), or competitor shops you admire. The more you share upfront, the faster we can build.",
+      "Welcome to your project portal! Fill in the brief below to tell us about your store, set your brand colours, and upload any existing files — logo, product catalog, or competitor shops you admire.",
   },
   {
     n: 1,
@@ -269,31 +412,38 @@ export const SHOP_PHASES: Phase[] = [
       { text: "Generate product placeholder imagery (Midjourney)" },
       { text: "Deploy preview to Shopify sandbox or Vercel" },
       {
-        text: "Iterate on design with client — homepage, product page, cart",
+        text: "Iterate on design with client",
         clientText: "Review the store design preview and share what to keep and what to change",
         clientOwned: true,
         clientTaskType: "design-review",
-        actionHint:
-          "Open the store preview link your designer shared above, explore it, then approve or request changes.",
+        actionHint: "Open the store preview link your designer shared, explore it, then approve or request changes.",
       },
       {
         text: "Finalise brand colours and typography",
         clientText: "Confirm your brand colours and fonts",
         clientOwned: true,
         clientTaskType: "design-review",
-        actionHint:
-          "Review the store preview and leave colour/font feedback in the notes — your designer handles the adjustments.",
+        actionHint: "Review the store preview and leave colour/font feedback in the notes.",
       },
     ],
     tools: ["v0 by Vercel", "Figma", "Looka", "Brandmark", "Midjourney", "Shopify"],
-    tip: "Product page design matters most — that's where buying decisions happen. Prioritise: clear images, visible price, and a prominent 'Add to cart' button.",
+    tip: "Product page design matters most — clear images, visible price, and a prominent 'Add to cart' button.",
     adminArtifactHint: "e.g. Design preview link, logo options, colour palette, Shopify theme demo",
     clientArtifactHint: "e.g. Brand inspiration, competitor shops you like, existing logo files",
     handoverNote:
-      "Share the design preview link (Shopify sandbox or Vercel). Ask the client to annotate directly or leave written feedback via notes.",
+      "Share the design preview link (Shopify sandbox or Vercel). Client needs to approve before you build.",
     clientGuidance:
-      "Your designer has created a look for your store. Click the preview link below and let us know what you love and what to change — the sooner you give feedback, the faster we can finalise.",
+      "Your designer has created a look for your store. Click the preview link below and let us know what you love and what to change.",
     clientUploads: false,
+    requiredArtifacts: [
+      {
+        type: "preview",
+        label: "Store Design Preview",
+        prompt: "Share the Shopify sandbox or Vercel design preview link",
+        hint: "your-store.myshopify.com or vercel.app preview",
+        required: true,
+      },
+    ],
   },
   {
     n: 2,
@@ -311,22 +461,38 @@ export const SHOP_PHASES: Phase[] = [
       { text: "Set up order notification and confirmation emails" },
       { text: "Add client as store admin — share admin link" },
       {
-        text: "Client imports product catalog (products, prices, descriptions, images)",
+        text: "Client imports product catalog",
         clientText: "Add your products to the store",
         clientOwned: true,
         clientTaskType: "link-action",
-        actionHint: "Use the store admin link your designer shared above to add products, prices, and images.",
+        actionHint: "Use the store admin link your designer shared to add products, prices, and images.",
       },
       { text: "QA the complete checkout flow end-to-end" },
     ],
     tools: ["Shopify", "WooCommerce", "Stripe", "PayPal", "Klaviyo"],
-    tip: "Time saver: send the client a product import template CSV. Shopify's native bulk import is much faster than manual entry for larger catalogs.",
+    tip: "Send the client a product import template CSV. Shopify's native bulk import is much faster than manual entry.",
     adminArtifactHint: "e.g. Shopify Admin link, product import template (CSV), staging checkout walkthrough",
     clientArtifactHint: "e.g. Product spreadsheet, product photos (Drive link), pricing list",
     handoverNote:
-      "Share the admin link and the product import template. The client must add all products before you can QA the checkout — make the dependency clear.",
+      "Share the admin link and the product import template. Client must add all products before you QA the checkout.",
     clientGuidance:
-      "The store is set up — now it needs your products! Use the admin link your designer shared to add your products, descriptions, prices, and images. The more complete this is, the sooner you can launch.",
+      "The store is set up — now it needs your products! Use the admin link your designer shared to add products, descriptions, prices, and images.",
+    requiredArtifacts: [
+      {
+        type: "access",
+        label: "Store Admin Link",
+        prompt: "Share the Shopify or WooCommerce admin link",
+        hint: "your-store.myshopify.com/admin",
+        required: true,
+      },
+      {
+        type: "file",
+        label: "Product Import Template",
+        prompt: "Share the CSV template for bulk product import",
+        hint: "docs.google.com/spreadsheets/... or Drive link",
+        required: false,
+      },
+    ],
   },
   {
     n: 3,
@@ -348,17 +514,26 @@ export const SHOP_PHASES: Phase[] = [
         clientText: "Review your legal pages (AGB, Widerrufsbelehrung) and confirm they're correct",
         clientOwned: true,
         clientTaskType: "confirm",
-        actionHint: "Open the legal page links your designer shared above and read through them.",
+        actionHint: "Open the legal page links your designer shared and read through them.",
       },
     ],
     tools: ["Cookiebot", "Trusted Shops", "Google Analytics 4"],
-    tip: "German law requires Widerrufsbelehrung (14-day right of return) even for digital goods in many cases. Use a generator — don't write it yourself.",
+    tip: "German law requires Widerrufsbelehrung (14-day right of return) even for digital goods in many cases. Use a generator.",
     adminArtifactHint: "e.g. Pre-launch checklist, legal pages doc, test order screenshot",
     clientArtifactHint: "e.g. Updated legal info, confirmed return policy, VAT number",
     handoverNote:
-      "Share the pre-launch checklist with the client and ask for written sign-off on the legal pages. Do not launch without explicit confirmation.",
+      "Share the pre-launch checklist and ask for written sign-off on the legal pages. Do not launch without explicit confirmation.",
     clientGuidance:
-      "We're doing final checks before launch. Your task: review the legal pages (especially the cancellation policy and T&Cs) and confirm they're accurate — this is a legal requirement in Germany.",
+      "We're doing final checks before launch. Your task: review the legal pages (especially the cancellation policy and T&Cs) and confirm they're accurate.",
+    requiredArtifacts: [
+      {
+        type: "document",
+        label: "Legal Pages",
+        prompt: "Share links to the Impressum, AGB, and Datenschutzerklärung for client review",
+        hint: "your-store.com/impressum or Notion doc",
+        required: true,
+      },
+    ],
   },
   {
     n: 4,
@@ -374,20 +549,36 @@ export const SHOP_PHASES: Phase[] = [
       { text: "Deliver handoff doc: how to add products, process orders, run promotions" },
       { text: "Set up uptime monitoring (Better Uptime)" },
       {
-        text: "Client connects custom domain (follow DNS instructions)",
+        text: "Client connects custom domain",
         clientText: "Connect your domain to open your store",
         clientOwned: true,
         clientTaskType: "confirm",
-        actionHint: "Follow the DNS setup guide your designer shared above.",
+        actionHint: "Follow the DNS setup guide your designer shared below.",
       },
     ],
     tools: ["Shopify", "Vercel", "Loom", "Better Uptime", "Cloudflare"],
-    tip: "The Loom walkthrough is the single biggest reducer of post-launch support emails. Cover: adding a product, processing an order, applying a discount code.",
+    tip: "The Loom walkthrough is the biggest reducer of post-launch support emails. Cover: adding a product, processing an order, applying a discount.",
     adminArtifactHint: "e.g. DNS connection guide, handoff doc, Loom order management walkthrough",
     clientArtifactHint: "e.g. Domain registrar name, nameserver / DNS access details",
     handoverNote:
       "Share the DNS instructions and the Loom walkthrough. Wait for domain connection before marking this phase complete.",
     clientGuidance: "Almost there! Follow the domain instructions below and your store will be open for business.",
+    requiredArtifacts: [
+      {
+        type: "document",
+        label: "DNS Setup Guide",
+        prompt: "Add the DNS connection instructions for the client",
+        hint: "notion.so/... or paste nameserver instructions",
+        required: true,
+      },
+      {
+        type: "recording",
+        label: "Loom Walkthrough",
+        prompt: "Record and share the store management tutorial (orders, products, discounts)",
+        hint: "loom.com/share/...",
+        required: true,
+      },
+    ],
   },
   {
     n: 5,
@@ -409,7 +600,7 @@ export const SHOP_PHASES: Phase[] = [
     adminArtifactHint: "e.g. Monthly performance report, ad campaign results, email flow stats",
     clientArtifactHint: "e.g. New products to add, upcoming promotions, seasonal content",
     handoverNote:
-      "Send the monthly report and flag revenue dips or conversion issues proactively. Schedule a quick call if there are strategic decisions.",
+      "Send the monthly report and flag revenue dips or conversion issues proactively.",
     clientGuidance:
       "We handle your store's monthly maintenance and growth. Share new products, upcoming promotions, or anything you'd like changed below — we'll handle the rest.",
     isService: true,
@@ -427,9 +618,18 @@ export function getTotalSteps(type: ProjectType): number {
   return getPhases(type).reduce((sum, p) => sum + p.steps.length, 0);
 }
 
-// Legacy export — website is the original type
+// Legacy exports
 export const PHASES = WEBSITE_PHASES;
 export const TOTAL_STEPS = getTotalSteps("website");
+
+export const ARTIFACT_TYPE_META: Record<ArtifactType, { label: string }> = {
+  preview: { label: "Preview" },
+  repo: { label: "Repository" },
+  access: { label: "Access" },
+  document: { label: "Document" },
+  recording: { label: "Recording" },
+  file: { label: "File" },
+};
 
 export const TOOL_URLS: Record<string, string> = {
   Notion: "https://notion.so",

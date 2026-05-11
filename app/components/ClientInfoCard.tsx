@@ -2,8 +2,6 @@ import { useRef, useState } from "react";
 import { useFetcher } from "react-router";
 import { Input } from "~/components/ui/input";
 import { ProgressBar } from "./ProgressBar";
-import type { BriefData } from "./ProjectBriefPanel";
-
 interface Props {
   project: {
     name: string;
@@ -14,10 +12,9 @@ interface Props {
   completedSteps: number;
   totalSteps: number;
   isAdmin: boolean;
-  brief?: BriefData;
 }
 
-export function ClientInfoCard({ project, completedSteps, totalSteps, isAdmin, brief }: Props) {
+export function ClientInfoCard({ project, completedSteps, totalSteps, isAdmin }: Props) {
   const fetcher = useFetcher({});
   const [clientName, setClientName] = useState(project.clientName);
   const [businessName, setBusinessName] = useState(project.businessName);
@@ -32,19 +29,6 @@ export function ClientInfoCard({ project, completedSteps, totalSteps, isAdmin, b
   }
 
   const pct = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
-
-  const briefRows: { label: string; value: string }[] = brief
-    ? [
-        brief.needsBrand !== null ? { label: "Needs brand?", value: brief.needsBrand ? "Yes" : "No" } : null,
-        brief.pageCount !== null ? { label: "Pages", value: String(brief.pageCount) } : null,
-        brief.features ? { label: "Features", value: brief.features } : null,
-        brief.timeline ? { label: "Timeline", value: brief.timeline } : null,
-        brief.budget ? { label: "Budget", value: brief.budget } : null,
-        brief.hasRetainer !== null
-          ? { label: "Retainer", value: brief.hasRetainer ? brief.retainerAmount || "Agreed" : "No" }
-          : null,
-      ].filter((r): r is { label: string; value: string } => r !== null)
-    : [];
 
   return (
     <div className="bg-card border border-border rounded-xl p-5 mb-8">
@@ -110,22 +94,6 @@ export function ClientInfoCard({ project, completedSteps, totalSteps, isAdmin, b
               <span className="text-sm text-foreground">{value || <span className="text-muted-foreground">—</span>}</span>
             </div>
           ))}
-        </div>
-      )}
-
-      {!isAdmin && briefRows.length > 0 && (
-        <div className="pt-4 mb-5 border-t border-border">
-          <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            Project Brief
-          </span>
-          <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
-            {briefRows.map(({ label, value }) => (
-              <div key={label}>
-                <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">{label}</dt>
-                <dd className="text-sm text-foreground leading-relaxed">{value}</dd>
-              </div>
-            ))}
-          </dl>
         </div>
       )}
 

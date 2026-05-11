@@ -4,8 +4,16 @@ import { Link, redirect, useFetcher } from "react-router";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { db } from "~/db/index.server";
-import { brandValues, phaseArtifacts, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
-import { getPhases, type ProjectType } from "~/lib/phases";
+import {
+  brandValues,
+  phaseArtifacts,
+  phaseNotes,
+  phaseStatuses,
+  phaseSteps,
+  projectBrief,
+  projects,
+} from "~/db/schema";
+import { getPhases, type ArtifactType, type PhaseStatus, type ProjectType } from "~/lib/phases";
 import { getIsAdmin } from "~/lib/session.server";
 import type { Route } from "./+types/project";
 
@@ -16,7 +24,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const isAdmin = await getIsAdmin(request);
-
   if (!isAdmin) throw redirect(`/view/${params.slug}`);
 
   const project = await db.query.projects.findFirst({
@@ -24,18 +31,34 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   });
   if (!project) throw new Response("Project not found", { status: 404 });
 
-  const [brand, briefRecord, stepRecords, noteRecords, artifactRecords, recentNotes, recentClientArtifacts] = await Promise.all([
+  const [
+    brand,
+    briefRecord,
+    stepRecords,
+    noteRecords,
+    artifactRecords,
+    statusRecords,
+    recentNotes,
+    recentClientArtifacts,
+  ] = await Promise.all([
     db.query.brandValues.findFirst({ where: eq(brandValues.projectId, project.id) }),
     db.query.projectBrief.findFirst({ where: eq(projectBrief.projectId, project.id) }),
     db.select().from(phaseSteps).where(eq(phaseSteps.projectId, project.id)),
     db.select().from(phaseNotes).where(eq(phaseNotes.projectId, project.id)),
     db.select().from(phaseArtifacts).where(eq(phaseArtifacts.projectId, project.id)),
-    db.select({ updatedAt: phaseNotes.updatedAt }).from(phaseNotes)
+    db.select().from(phaseStatuses).where(eq(phaseStatuses.projectId, project.id)),
+    db
+      .select({ updatedAt: phaseNotes.updatedAt })
+      .from(phaseNotes)
       .where(and(eq(phaseNotes.projectId, project.id), ne(phaseNotes.clientNotes, "")))
-      .orderBy(desc(phaseNotes.updatedAt)).limit(1),
-    db.select({ createdAt: phaseArtifacts.createdAt }).from(phaseArtifacts)
+      .orderBy(desc(phaseNotes.updatedAt))
+      .limit(1),
+    db
+      .select({ createdAt: phaseArtifacts.createdAt })
+      .from(phaseArtifacts)
       .where(and(eq(phaseArtifacts.projectId, project.id), eq(phaseArtifacts.from, "client")))
-      .orderBy(desc(phaseArtifacts.createdAt)).limit(1),
+      .orderBy(desc(phaseArtifacts.createdAt))
+      .limit(1),
   ]);
 
   const projectType = (project.type ?? "website") as ProjectType;
@@ -54,14 +77,6 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     });
   }
 
-  const activityDates: Date[] = [
-    ...(recentNotes[0] ? [recentNotes[0].updatedAt] : []),
-    ...(recentClientArtifacts[0] ? [recentClientArtifacts[0].createdAt] : []),
-  ];
-  const lastClientActivityAt = activityDates.length > 0
-    ? new Date(Math.max(...activityDates.map((d) => d.getTime()))).toISOString()
-    : null;
-
   const adminNotesByPhase: Record<number, string> = {};
   const clientNotesByPhase: Record<number, string> = {};
   for (const phase of phases) {
@@ -72,7 +87,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   const artifactsByPhase: Record<
     number,
-    { id: string; from: "admin" | "client"; label: string; url: string; createdAt: string }[]
+    { id: string; from: "admin" | "client"; label: string; url: string; artifactType: ArtifactType; createdAt: string }[]
   > = {};
   for (const phase of phases) {
     artifactsByPhase[phase.n] = artifactRecords
@@ -83,9 +98,36 @@ export async function loader({ params, request }: Route.LoaderArgs) {
         from: a.from as "admin" | "client",
         label: a.label,
         url: a.url,
+        artifactType: a.artifactType as ArtifactType,
         createdAt: a.createdAt.toISOString(),
       }));
   }
+
+  // Phase 0 auto-status: in_progress when proposal, approved when active
+  const phaseStatusByPhase: Record<number, { status: PhaseStatus; revisionNote: string }> = {};
+  for (const phase of phases) {
+    const rec = statusRecords.find((r) => r.phaseNumber === phase.n);
+    if (phase.n === 0) {
+      phaseStatusByPhase[0] = {
+        status: project.status === "active" ? "approved" : "in_progress",
+        revisionNote: "",
+      };
+    } else {
+      phaseStatusByPhase[phase.n] = {
+        status: (rec?.status ?? "not_started") as PhaseStatus,
+        revisionNote: rec?.revisionNote ?? "",
+      };
+    }
+  }
+
+  const activityDates: Date[] = [
+    ...(recentNotes[0] ? [recentNotes[0].updatedAt] : []),
+    ...(recentClientArtifacts[0] ? [recentClientArtifacts[0].createdAt] : []),
+  ];
+  const lastClientActivityAt =
+    activityDates.length > 0
+      ? new Date(Math.max(...activityDates.map((d) => d.getTime()))).toISOString()
+      : null;
 
   return {
     isAdmin,
@@ -123,6 +165,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     adminNotesByPhase,
     clientNotesByPhase,
     artifactsByPhase,
+    phaseStatusByPhase,
     lastClientActivityAt,
   };
 }
@@ -146,6 +189,37 @@ export async function action({ request, params }: Route.ActionArgs) {
       .onConflictDoUpdate({
         target: [phaseSteps.projectId, phaseSteps.phaseNumber, phaseSteps.stepIndex],
         set: { completed, completedAt: completed ? new Date() : null },
+      });
+    return { ok: true };
+  }
+
+  if (intent === "start-phase") {
+    const phaseNumber = Number(formData.get("phaseNumber"));
+    await db
+      .insert(phaseStatuses)
+      .values({ projectId: project.id, phaseNumber, status: "in_progress", updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: [phaseStatuses.projectId, phaseStatuses.phaseNumber],
+        set: { status: "in_progress", updatedAt: new Date() },
+      });
+    return { ok: true };
+  }
+
+  if (intent === "deliver-phase") {
+    const phaseNumber = Number(formData.get("phaseNumber"));
+    await db
+      .insert(phaseStatuses)
+      .values({
+        projectId: project.id,
+        phaseNumber,
+        status: "delivered",
+        deliveredAt: new Date(),
+        revisionNote: "",
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [phaseStatuses.projectId, phaseStatuses.phaseNumber],
+        set: { status: "delivered", deliveredAt: new Date(), revisionNote: "", updatedAt: new Date() },
       });
     return { ok: true };
   }
@@ -175,14 +249,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     const setField = noteType === "admin" ? { adminNotes: notes } : { clientNotes: notes };
     await db
       .insert(phaseNotes)
-      .values({
-        projectId: project.id,
-        phaseNumber,
-        adminNotes: "",
-        clientNotes: "",
-        ...setField,
-        updatedAt: new Date(),
-      })
+      .values({ projectId: project.id, phaseNumber, adminNotes: "", clientNotes: "", ...setField, updatedAt: new Date() })
       .onConflictDoUpdate({
         target: [phaseNotes.projectId, phaseNotes.phaseNumber],
         set: { ...setField, updatedAt: new Date() },
@@ -231,6 +298,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       from,
       label,
       url: String(formData.get("url") || "").trim(),
+      artifactType: String(formData.get("artifactType") || "file"),
     });
     return { ok: true };
   }
@@ -243,6 +311,21 @@ export async function action({ request, params }: Route.ActionArgs) {
 
   if (intent === "confirm-project") {
     await db.update(projects).set({ status: "active" }).where(eq(projects.id, project.id));
+    // Auto-approve phase 0 and start phase 1
+    await db
+      .insert(phaseStatuses)
+      .values({ projectId: project.id, phaseNumber: 0, status: "approved", approvedAt: new Date(), updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: [phaseStatuses.projectId, phaseStatuses.phaseNumber],
+        set: { status: "approved", approvedAt: new Date(), updatedAt: new Date() },
+      });
+    await db
+      .insert(phaseStatuses)
+      .values({ projectId: project.id, phaseNumber: 1, status: "not_started", updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: [phaseStatuses.projectId, phaseStatuses.phaseNumber],
+        set: { status: "not_started", updatedAt: new Date() },
+      });
     return { ok: true };
   }
 
@@ -281,6 +364,7 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
     adminNotesByPhase,
     clientNotesByPhase,
     artifactsByPhase,
+    phaseStatusByPhase,
     lastClientActivityAt,
   } = loaderData;
   const deleteFetcher = useFetcher();
@@ -292,10 +376,9 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Navbar */}
       <header className="sticky top-0 z-50 flex h-14 items-center gap-3 justify-between border-b border-border bg-background px-4 sm:px-6">
         <div className="flex items-center gap-3 shrink-0">
-          <Link to="/" className="">
+          <Link to="/">
             <div className="flex h-7 w-10 items-center justify-center rounded-md bg-foreground">
               <span className="text-sm font-bold text-background">AS</span>
             </div>
@@ -325,7 +408,7 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
           <button
             onClick={handleDelete}
             disabled={deleteFetcher.state !== "idle"}
-            className="rounded-md px-2 sm:px-3 py-1.5 text-sm text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+            className="rounded-md px-2 sm:px-3 py-1.5 text-sm text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50 cursor-pointer"
             title="Delete project"
           >
             {deleteFetcher.state !== "idle" ? "Deleting…" : "Delete"}
@@ -383,6 +466,7 @@ export default function ProjectPage({ loaderData }: Route.ComponentProps) {
           initialAdminNotesByPhase={adminNotesByPhase}
           initialClientNotesByPhase={clientNotesByPhase}
           artifactsByPhase={artifactsByPhase}
+          phaseStatusByPhase={phaseStatusByPhase}
         />
       </main>
     </div>

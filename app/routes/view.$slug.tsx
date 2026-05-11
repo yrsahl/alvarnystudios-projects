@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import { isRouteErrorResponse, useRouteError } from "react-router";
 import { ProjectTimeline } from "~/components/ProjectTimeline";
 import { db } from "~/db/index.server";
-import { brandValues, phaseArtifacts, phaseNotes, phaseSteps, projectBrief, projects } from "~/db/schema";
-import { getPhases, type ProjectType } from "~/lib/phases";
+import { brandValues, phaseArtifacts, phaseNotes, phaseStatuses, phaseSteps, projectBrief, projects } from "~/db/schema";
+import { getPhases, type ArtifactType, type PhaseStatus, type ProjectType } from "~/lib/phases";
 import type { Route } from "./+types/view.$slug";
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -20,12 +20,13 @@ export async function loader({ params }: Route.LoaderArgs) {
   const projectType = (project.type ?? "website") as ProjectType;
   const phases = getPhases(projectType);
 
-  const [brand, briefRecord, stepRecords, noteRecords, artifactRecords] = await Promise.all([
+  const [brand, briefRecord, stepRecords, noteRecords, artifactRecords, statusRecords] = await Promise.all([
     db.query.brandValues.findFirst({ where: eq(brandValues.projectId, project.id) }),
     db.query.projectBrief.findFirst({ where: eq(projectBrief.projectId, project.id) }),
     db.select().from(phaseSteps).where(eq(phaseSteps.projectId, project.id)),
     db.select().from(phaseNotes).where(eq(phaseNotes.projectId, project.id)),
     db.select().from(phaseArtifacts).where(eq(phaseArtifacts.projectId, project.id)),
+    db.select().from(phaseStatuses).where(eq(phaseStatuses.projectId, project.id)),
   ]);
 
   const stepsByPhase: Record<number, boolean[]> = {};
@@ -47,7 +48,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     clientNotesByPhase[phase.n] = rec?.clientNotes ?? "";
   }
 
-  const artifactsByPhase: Record<number, { id: string; from: "admin" | "client"; label: string; url: string; createdAt: string }[]> = {};
+  const artifactsByPhase: Record<number, { id: string; from: "admin" | "client"; label: string; url: string; artifactType: ArtifactType; createdAt: string }[]> = {};
   for (const phase of phases) {
     artifactsByPhase[phase.n] = artifactRecords
       .filter((a) => a.phaseNumber === phase.n)
@@ -57,8 +58,26 @@ export async function loader({ params }: Route.LoaderArgs) {
         from: a.from as "admin" | "client",
         label: a.label,
         url: a.url,
+        artifactType: a.artifactType as ArtifactType,
         createdAt: a.createdAt.toISOString(),
       }));
+  }
+
+  // Phase 0: auto-derive from project status; others from DB
+  const phaseStatusByPhase: Record<number, { status: PhaseStatus; revisionNote: string }> = {};
+  for (const phase of phases) {
+    const rec = statusRecords.find((r) => r.phaseNumber === phase.n);
+    if (phase.n === 0) {
+      phaseStatusByPhase[0] = {
+        status: project.status === "active" ? "approved" : "in_progress",
+        revisionNote: "",
+      };
+    } else {
+      phaseStatusByPhase[phase.n] = {
+        status: (rec?.status ?? "not_started") as PhaseStatus,
+        revisionNote: rec?.revisionNote ?? "",
+      };
+    }
   }
 
   return {
@@ -95,6 +114,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     adminNotesByPhase: {} as Record<number, string>,
     clientNotesByPhase,
     artifactsByPhase,
+    phaseStatusByPhase,
   };
 }
 
@@ -143,6 +163,24 @@ export async function action({ request, params }: Route.ActionArgs) {
     return { ok: true };
   }
 
+  if (intent === "update-brief") {
+    const vals = {
+      needsBrand: formData.get("needsBrand") === "" ? null : formData.get("needsBrand") === "true",
+      pageCount: formData.get("pageCount") === "" ? null : Number(formData.get("pageCount")),
+      features: String(formData.get("features") || ""),
+      timeline: String(formData.get("timeline") || ""),
+      budget: String(formData.get("budget") || ""),
+      hasRetainer: formData.get("hasRetainer") === "" ? null : formData.get("hasRetainer") === "true",
+      retainerAmount: String(formData.get("retainerAmount") || ""),
+      updatedAt: new Date(),
+    };
+    await db
+      .insert(projectBrief)
+      .values({ projectId: project.id, ...vals })
+      .onConflictDoUpdate({ target: projectBrief.projectId, set: vals });
+    return { ok: true };
+  }
+
   if (intent === "update-brand") {
     const vals = {
       primaryColor: String(formData.get("primaryColor") || "#5B8CFF"),
@@ -161,6 +199,31 @@ export async function action({ request, params }: Route.ActionArgs) {
     return { ok: true };
   }
 
+  if (intent === "approve-phase") {
+    const phaseNumber = Number(formData.get("phaseNumber"));
+    await db
+      .insert(phaseStatuses)
+      .values({ projectId: project.id, phaseNumber, status: "approved", approvedAt: new Date(), updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: [phaseStatuses.projectId, phaseStatuses.phaseNumber],
+        set: { status: "approved", approvedAt: new Date(), updatedAt: new Date() },
+      });
+    return { ok: true };
+  }
+
+  if (intent === "request-revision") {
+    const phaseNumber = Number(formData.get("phaseNumber"));
+    const revisionNote = String(formData.get("revisionNote") || "").trim();
+    await db
+      .insert(phaseStatuses)
+      .values({ projectId: project.id, phaseNumber, status: "revision_requested", revisionNote, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: [phaseStatuses.projectId, phaseStatuses.phaseNumber],
+        set: { status: "revision_requested", revisionNote, updatedAt: new Date() },
+      });
+    return { ok: true };
+  }
+
   if (intent === "add-artifact") {
     const from = String(formData.get("from"));
     if (from !== "client") throw new Response("Forbidden", { status: 403 });
@@ -172,6 +235,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       from: "client",
       label,
       url: String(formData.get("url") || "").trim(),
+      artifactType: "file",
     });
     return { ok: true };
   }
@@ -343,7 +407,7 @@ export function ErrorBoundary() {
 }
 
 export default function ClientProjectView({ loaderData }: Route.ComponentProps) {
-  const { project, projectType, brand, brief, stepsByPhase, completedAtByPhase, adminNotesByPhase, clientNotesByPhase, artifactsByPhase } = loaderData;
+  const { project, projectType, brand, brief, stepsByPhase, completedAtByPhase, adminNotesByPhase, clientNotesByPhase, artifactsByPhase, phaseStatusByPhase } = loaderData;
   const displayName = project.businessName || project.name;
 
   return (
@@ -416,6 +480,7 @@ export default function ClientProjectView({ loaderData }: Route.ComponentProps) 
           initialAdminNotesByPhase={adminNotesByPhase}
           initialClientNotesByPhase={clientNotesByPhase}
           artifactsByPhase={artifactsByPhase}
+          phaseStatusByPhase={phaseStatusByPhase}
         />
       </main>
 

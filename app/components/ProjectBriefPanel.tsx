@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useFetcher } from "react-router";
+import { BrandValuesPanel, type BrandData } from "./BrandValuesPanel";
 
 export interface BriefData {
   needsBrand: boolean | null;
@@ -14,6 +15,7 @@ export interface BriefData {
 interface Props {
   brief: BriefData;
   isAdmin: boolean;
+  brand?: BrandData;
 }
 
 function Toggle({
@@ -55,7 +57,7 @@ const inputClass =
   "w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors";
 const labelClass = "block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5";
 
-export function ProjectBriefPanel({ brief, isAdmin }: Props) {
+export function ProjectBriefPanel({ brief, isAdmin, brand }: Props) {
   const fetcher = useFetcher({});
   const [values, setValues] = useState<BriefData>(brief);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -85,38 +87,7 @@ export function ProjectBriefPanel({ brief, isAdmin }: Props) {
     save(next);
   }
 
-  if (!isAdmin) {
-    const rows = [
-      values.needsBrand !== null ? { label: "Needs brand?", value: values.needsBrand ? "Yes" : "No" } : null,
-      values.pageCount !== null ? { label: "Pages", value: String(values.pageCount) } : null,
-      values.features ? { label: "Features", value: values.features } : null,
-      values.timeline ? { label: "Timeline", value: values.timeline } : null,
-      values.budget ? { label: "Budget", value: values.budget } : null,
-      values.hasRetainer !== null
-        ? { label: "Retainer", value: values.hasRetainer ? values.retainerAmount || "Agreed" : "No" }
-        : null,
-    ].filter((r): r is { label: string; value: string } => r !== null);
-
-    return (
-      <div className="bg-card border border-border rounded-xl p-5 mb-8">
-        <span className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
-          Project Brief
-        </span>
-        {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Brief not yet filled in.</p>
-        ) : (
-          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4">
-            {rows.map(({ label, value }) => (
-              <div key={label}>
-                <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">{label}</dt>
-                <dd className="text-sm text-foreground leading-relaxed">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-      </div>
-    );
-  }
+  const showBrandPicker = values.needsBrand === false && brand;
 
   return (
     <div className="pt-5 mt-5 border-t border-border">
@@ -128,6 +99,16 @@ export function ProjectBriefPanel({ brief, isAdmin }: Props) {
         <div>
           <label className={labelClass}>Needs brand?</label>
           <Toggle value={values.needsBrand} onChange={(v) => update({ needsBrand: v })} />
+          {values.needsBrand === false && (
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              Share your existing colours and fonts below.
+            </p>
+          )}
+          {values.needsBrand === true && (
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              We'll create your brand identity in the next phase.
+            </p>
+          )}
         </div>
 
         <div>
@@ -142,6 +123,17 @@ export function ProjectBriefPanel({ brief, isAdmin }: Props) {
           />
         </div>
 
+        <div className="col-span-2">
+          <label className={labelClass}>Features & goals</label>
+          <textarea
+            value={values.features}
+            onChange={(e) => update({ features: e.target.value })}
+            placeholder="e.g. Contact form, Google Maps, Blog, Booking widget"
+            rows={2}
+            className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y transition-colors"
+          />
+        </div>
+
         <div>
           <label className={labelClass}>Timeline</label>
           <input
@@ -153,46 +145,41 @@ export function ProjectBriefPanel({ brief, isAdmin }: Props) {
           />
         </div>
 
-        <div>
-          <label className={labelClass}>Budget</label>
-          <input
-            type="text"
-            value={values.budget}
-            onChange={(e) => update({ budget: e.target.value })}
-            placeholder="e.g. €1,500"
-            className={inputClass}
-          />
-        </div>
+        {isAdmin && (
+          <>
+            <div>
+              <label className={labelClass}>Budget</label>
+              <input
+                type="text"
+                value={values.budget}
+                onChange={(e) => update({ budget: e.target.value })}
+                placeholder="e.g. €1,500"
+                className={inputClass}
+              />
+            </div>
 
-        <div className="col-span-2">
-          <label className={labelClass}>Features</label>
-          <textarea
-            value={values.features}
-            onChange={(e) => update({ features: e.target.value })}
-            placeholder="e.g. Contact form, Google Maps, Blog, Booking widget"
-            rows={2}
-            className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y transition-colors"
-          />
-        </div>
+            <div>
+              <label className={labelClass}>Retainer agreed?</label>
+              <Toggle value={values.hasRetainer} onChange={(v) => update({ hasRetainer: v })} />
+            </div>
 
-        <div>
-          <label className={labelClass}>Retainer agreed?</label>
-          <Toggle value={values.hasRetainer} onChange={(v) => update({ hasRetainer: v })} />
-        </div>
-
-        {values.hasRetainer && (
-          <div>
-            <label className={labelClass}>Retainer Amount</label>
-            <input
-              type="text"
-              value={values.retainerAmount}
-              onChange={(e) => update({ retainerAmount: e.target.value })}
-              placeholder="e.g. €150/mo"
-              className={inputClass}
-            />
-          </div>
+            {values.hasRetainer && (
+              <div>
+                <label className={labelClass}>Retainer Amount</label>
+                <input
+                  type="text"
+                  value={values.retainerAmount}
+                  onChange={(e) => update({ retainerAmount: e.target.value })}
+                  placeholder="e.g. €150/mo"
+                  className={inputClass}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      {showBrandPicker && <BrandValuesPanel brand={brand} />}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getPhases, type ProjectType } from "~/lib/phases";
+import { getPhases, type PhaseStatus, type ProjectType } from "~/lib/phases";
 import { PhaseCard } from "./PhaseCard";
 import { ClientInfoCard } from "./ClientInfoCard";
 import type { BriefData } from "./ProjectBriefPanel";
@@ -22,6 +22,7 @@ interface Props {
   initialAdminNotesByPhase: Record<number, string>;
   initialClientNotesByPhase: Record<number, string>;
   artifactsByPhase: Record<number, Artifact[]>;
+  phaseStatusByPhase: Record<number, { status: PhaseStatus; revisionNote: string }>;
 }
 
 export function ProjectTimeline({
@@ -35,15 +36,15 @@ export function ProjectTimeline({
   initialAdminNotesByPhase,
   initialClientNotesByPhase,
   artifactsByPhase,
+  phaseStatusByPhase,
 }: Props) {
   const [stepsByPhase, setStepsByPhase] = useState(initialStepsByPhase);
   const [completedAtByPhase, setCompletedAtByPhase] = useState(initialCompletedAtByPhase);
 
   const allPhases = getPhases(projectType);
-  // Show all phases to both admin and client — phase 0 is the proposal/brief workspace
   const visiblePhases = allPhases;
 
-  // Clients only see progress on steps they own
+  // Clients only count steps they own
   const completedSteps = visiblePhases.reduce((sum, phase) => {
     const steps = stepsByPhase[phase.n] ?? [];
     return sum + steps.filter((done, i) =>
@@ -55,16 +56,34 @@ export function ProjectTimeline({
     0,
   );
 
-  // Auto-open the first phase that has incomplete client tasks
-  const clientActivePhaseN = isAdmin
-    ? null
-    : visiblePhases.find((phase) =>
+  // Auto-open logic:
+  // Admin: first in_progress or revision_requested phase, else phase 0
+  // Client: first "delivered" phase (needs review), else first with pending client tasks
+  function getInitialOpen(phaseN: number): boolean {
+    if (isAdmin) {
+      const statuses = allPhases.map((p) => ({
+        n: p.n,
+        status: phaseStatusByPhase[p.n]?.status ?? "not_started",
+      }));
+      const active = statuses.find(
+        (s) => s.status === "in_progress" || s.status === "revision_requested" || s.status === "delivered",
+      );
+      return phaseN === (active?.n ?? 0);
+    } else {
+      // Client: delivered phase first (needs action), then first with pending tasks
+      const deliveredPhase = allPhases.find(
+        (p) => (phaseStatusByPhase[p.n]?.status ?? "not_started") === "delivered",
+      );
+      if (deliveredPhase) return phaseN === deliveredPhase.n;
+      const activePhase = allPhases.find((phase) =>
         phase.steps.some(
           (step, i) => step.clientOwned && !(stepsByPhase[phase.n]?.[i] ?? false),
         ),
-      )?.n ?? null;
+      );
+      return phaseN === (activePhase?.n ?? 0);
+    }
+  }
 
-  // Derive spine gradient from phase colors
   const spineGradient = allPhases.map((p) => p.color).join(", ");
 
   function handleStepToggle(phaseNumber: number, stepIndex: number, checked: boolean) {
@@ -75,7 +94,7 @@ export function ProjectTimeline({
     setCompletedAtByPhase((prev) => ({
       ...prev,
       [phaseNumber]: (prev[phaseNumber] ?? []).map((v, i) =>
-        i === stepIndex ? (checked ? new Date().toISOString() : null) : v
+        i === stepIndex ? (checked ? new Date().toISOString() : null) : v,
       ),
     }));
   }
@@ -87,7 +106,6 @@ export function ProjectTimeline({
         completedSteps={completedSteps}
         totalSteps={totalSteps}
         isAdmin={isAdmin}
-        brief={isAdmin ? undefined : brief}
       />
 
       <div className="relative">
@@ -96,21 +114,27 @@ export function ProjectTimeline({
           style={{ background: `linear-gradient(to bottom, ${spineGradient})` }}
         />
 
-        {visiblePhases.map((phase) => (
-          <PhaseCard
-            key={phase.n}
-            phase={phase}
-            checkedSteps={stepsByPhase[phase.n] ?? []}
-            completedAtSteps={completedAtByPhase[phase.n] ?? []}
-            initialAdminNotes={initialAdminNotesByPhase[phase.n] ?? ""}
-            initialClientNotes={initialClientNotesByPhase[phase.n] ?? ""}
-            isAdmin={isAdmin}
-            initialOpen={isAdmin ? phase.n === 0 : phase.n === clientActivePhaseN}
-            artifacts={artifactsByPhase[phase.n] ?? []}
-            brand={(phase.n === 0 || phase.n === 1) ? brand : undefined}
-            onStepToggle={handleStepToggle}
-          />
-        ))}
+        {visiblePhases.map((phase) => {
+          const phaseStatusData = phaseStatusByPhase[phase.n] ?? { status: "not_started" as PhaseStatus, revisionNote: "" };
+          return (
+            <PhaseCard
+              key={phase.n}
+              phase={phase}
+              checkedSteps={stepsByPhase[phase.n] ?? []}
+              completedAtSteps={completedAtByPhase[phase.n] ?? []}
+              initialAdminNotes={initialAdminNotesByPhase[phase.n] ?? ""}
+              initialClientNotes={initialClientNotesByPhase[phase.n] ?? ""}
+              isAdmin={isAdmin}
+              initialOpen={getInitialOpen(phase.n)}
+              artifacts={artifactsByPhase[phase.n] ?? []}
+              brand={(phase.n === 0 || phase.n === 1) ? brand : undefined}
+              brief={phase.n === 0 ? brief : undefined}
+              phaseStatus={phaseStatusData.status}
+              revisionNote={phaseStatusData.revisionNote}
+              onStepToggle={handleStepToggle}
+            />
+          );
+        })}
       </div>
     </>
   );
