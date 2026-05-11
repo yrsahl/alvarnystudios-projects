@@ -40,9 +40,7 @@ function ClientTaskCard({
 }) {
   const fetcher = useFetcher({});
   const [requestedChanges, setRequestedChanges] = useState(false);
-  const pendingChecked = fetcher.formData != null
-    ? fetcher.formData.get("completed") === "true"
-    : checked;
+  const pendingChecked = fetcher.formData != null ? fetcher.formData.get("completed") === "true" : checked;
 
   function toggle(next: boolean) {
     onToggle(index, next);
@@ -67,13 +65,19 @@ function ClientTaskCard({
             style={{ backgroundColor: color, borderColor: color }}
           >
             <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-              <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d="M1 3.5L3.5 6L8 1"
+                stroke="white"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </span>
-          <span className="text-sm font-medium truncate" style={{ color }}>{label}</span>
-          {completedAt && (
-            <span className="text-xs text-muted-foreground shrink-0">{relativeTime(completedAt)}</span>
-          )}
+          <span className="text-sm font-medium truncate" style={{ color }}>
+            {label}
+          </span>
+          {completedAt && <span className="text-xs text-muted-foreground shrink-0">{relativeTime(completedAt)}</span>}
         </div>
         <button
           onClick={() => toggle(false)}
@@ -91,9 +95,7 @@ function ClientTaskCard({
     <div className="rounded-lg border border-border bg-card p-4 space-y-3">
       <div>
         <p className="text-sm font-medium text-foreground">{label}</p>
-        {step.actionHint && (
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{step.actionHint}</p>
-        )}
+        {step.actionHint && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{step.actionHint}</p>}
         {requestedChanges && (
           <p className="text-xs mt-2 font-medium" style={{ color }}>
             ↓ Add your feedback in the notes section below
@@ -109,7 +111,13 @@ function ClientTaskCard({
               style={{ backgroundColor: color }}
             >
               <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M1 4l2.5 2.5L9 1"
+                  stroke="white"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
               Looks great — approve
             </button>
@@ -236,7 +244,7 @@ interface Props {
 }
 
 const textareaClass =
-  "w-full bg-background border border-input rounded-md px-3 py-2.5 text-sm text-foreground leading-relaxed placeholder:text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y transition-colors";
+  "w-full bg-white border border-input rounded-md px-3 py-2.5 text-sm text-foreground leading-relaxed placeholder:text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y transition-colors";
 
 export function PhaseCard({
   phase,
@@ -268,7 +276,10 @@ export function PhaseCard({
   clientNotesValueRef.current = clientNotes;
 
   useEffect(() => {
-    if (fetcher.state !== "idle") { notesFetcherHadSubmission.current = true; return; }
+    if (fetcher.state !== "idle") {
+      notesFetcherHadSubmission.current = true;
+      return;
+    }
     if (!notesFetcherHadSubmission.current) return;
     notesFetcherHadSubmission.current = false;
     setNotesSaved(true);
@@ -296,7 +307,10 @@ export function PhaseCard({
     const end = el?.selectionEnd ?? 0;
     setClientNotes(merged);
     if (el === document.activeElement) {
-      requestAnimationFrame(() => { el!.selectionStart = start; el!.selectionEnd = end; });
+      requestAnimationFrame(() => {
+        el!.selectionStart = start;
+        el!.selectionEnd = end;
+      });
     }
   }, [pollFetcher.data]);
 
@@ -305,12 +319,8 @@ export function PhaseCard({
   const pct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const allDone = completedCount === totalCount;
 
-  const clientSteps = phase.steps
-    .map((step, i) => ({ step, i }))
-    .filter(({ step }) => step.clientOwned);
-  const adminOnlySteps = phase.steps
-    .map((step, i) => ({ step, i }))
-    .filter(({ step }) => !step.clientOwned);
+  const clientSteps = phase.steps.map((step, i) => ({ step, i })).filter(({ step }) => step.clientOwned);
+  const adminOnlySteps = phase.steps.map((step, i) => ({ step, i })).filter(({ step }) => !step.clientOwned);
   const hasClientTasks = clientSteps.length > 0;
   const pendingClientTasks = clientSteps.filter(({ i }) => !(checkedSteps[i] ?? false));
   const hasAdminArtifacts = artifacts.some((a) => a.from === "admin");
@@ -359,7 +369,13 @@ export function PhaseCard({
       >
         {allDone ? (
           <svg width="14" height="11" viewBox="0 0 14 11" fill="none">
-            <path d="M1.5 5.5L5 9L12.5 1.5" stroke={phase.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M1.5 5.5L5 9L12.5 1.5"
+              stroke={phase.color}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         ) : isAdmin ? (
           phase.n
@@ -414,11 +430,20 @@ export function PhaseCard({
                 </span>
               )}
               <svg
-                width="10" height="10" viewBox="0 0 10 10" fill="none"
+                width="10"
+                height="10"
+                viewBox="0 0 10 10"
+                fill="none"
                 className="shrink-0 transition-transform duration-200 text-muted-foreground"
                 style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)" }}
               >
-                <path d="M3 2L7 5L3 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M3 2L7 5L3 8"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </div>
           </div>
@@ -428,7 +453,6 @@ export function PhaseCard({
         {/* Expandable body */}
         {open && (
           <div className="border-t border-border p-5 bg-secondary/40 space-y-5">
-
             {/* ── CLIENT VIEW ── */}
             {!isAdmin && (
               <>
@@ -442,7 +466,14 @@ export function PhaseCard({
                       color: "var(--foreground)",
                     }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 mt-0.5" style={{ color: phase.color }}>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      className="shrink-0 mt-0.5"
+                      style={{ color: phase.color }}
+                    >
                       <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.2" />
                       <path d="M8 7v4M8 5.5v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
                     </svg>
@@ -461,19 +492,34 @@ export function PhaseCard({
                     clientHint={phase.clientArtifactHint}
                     showOnlyAdmin
                   />
-                ) : phase.clientUploads === false && (
-                  <div className="flex items-start gap-3 rounded-lg border border-dashed border-border px-4 py-3.5 text-sm">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 mt-0.5 text-muted-foreground">
-                      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" />
-                      <path d="M8 5v3.5l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <div>
-                      <p className="font-medium text-foreground">Your designer is working on this</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                        They'll share a preview here as soon as it's ready. You'll be able to review and leave feedback then.
-                      </p>
+                ) : (
+                  phase.clientUploads === false && (
+                    <div className="flex items-start gap-3 rounded-lg border border-dashed border-border px-4 py-3.5 text-sm">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        className="shrink-0 mt-0.5 text-muted-foreground"
+                      >
+                        <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" />
+                        <path
+                          d="M8 5v3.5l2 2"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <div>
+                        <p className="font-medium text-foreground">Your designer is working on this</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                          They'll share a preview here as soon as it's ready. You'll be able to review and leave
+                          feedback then.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )
                 )}
 
                 {/* Phase 0: initial brand input */}
@@ -488,7 +534,10 @@ export function PhaseCard({
                     <ul className="space-y-2">
                       {phase.steps.map((step, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <span className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: phase.color }} />
+                          <span
+                            className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full"
+                            style={{ backgroundColor: phase.color }}
+                          />
                           {step.text}
                         </li>
                       ))}
@@ -519,14 +568,23 @@ export function PhaseCard({
                       ))}
                     </div>
                   </div>
-                ) : !isWaiting && phase.n > 0 && (
-                  <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-muted border border-border text-xs text-muted-foreground">
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
-                      <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.2" />
-                      <path d="M4.5 7.5l2 2 3-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Your team is handling this phase — feel free to share files or questions below.
-                  </div>
+                ) : (
+                  !isWaiting &&
+                  phase.n > 0 && (
+                    <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-muted border border-border text-xs text-muted-foreground">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
+                        <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.2" />
+                        <path
+                          d="M4.5 7.5l2 2 3-4"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      Your team is handling this phase — feel free to share files or questions below.
+                    </div>
+                  )
                 )}
 
                 {/* Upload zone + notes */}
@@ -547,7 +605,9 @@ export function PhaseCard({
                       <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Notes & questions
                       </h4>
-                      <span className={`text-xs text-muted-foreground transition-opacity duration-500 ${notesSaved ? "opacity-100" : "opacity-0"}`}>
+                      <span
+                        className={`text-xs text-muted-foreground transition-opacity duration-500 ${notesSaved ? "opacity-100" : "opacity-0"}`}
+                      >
                         Saved ✓
                       </span>
                     </div>
@@ -632,9 +692,7 @@ export function PhaseCard({
                   {/* Tools + Tip */}
                   <div className="space-y-4">
                     <div>
-                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                        Tools
-                      </h4>
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Tools</h4>
                       <div className="flex flex-wrap gap-1.5">
                         {phase.tools.map((tool) => (
                           <a
@@ -665,12 +723,28 @@ export function PhaseCard({
                 {/* Handover callout */}
                 {phase.handoverNote && (
                   <div className="flex items-start gap-2.5 rounded-lg px-3.5 py-3 text-sm border border-amber-500/25 bg-amber-500/8">
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className="shrink-0 mt-0.5 text-amber-500">
-                      <path d="M2 7.5h11M9 3.5l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 15 15"
+                      fill="none"
+                      className="shrink-0 mt-0.5 text-amber-500"
+                    >
+                      <path
+                        d="M2 7.5h11M9 3.5l4 4-4 4"
+                        stroke="currentColor"
+                        strokeWidth="1.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                     <div className="flex-1 min-w-0">
-                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Next step for client</span>
-                      <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">{phase.handoverNote}</p>
+                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                        Next step for client
+                      </span>
+                      <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">
+                        {phase.handoverNote}
+                      </p>
                     </div>
                     <button
                       onClick={copyClientLink}
@@ -678,7 +752,11 @@ export function PhaseCard({
                       style={
                         copied
                           ? { borderColor: `${phase.color}40`, backgroundColor: `${phase.color}15`, color: phase.color }
-                          : { borderColor: "var(--amber-500/30)", backgroundColor: "var(--amber-500/10)", color: "var(--amber-700)" }
+                          : {
+                              borderColor: "var(--amber-500/30)",
+                              backgroundColor: "var(--amber-500/10)",
+                              color: "var(--amber-700)",
+                            }
                       }
                     >
                       {copied ? "Copied ✓" : "Copy client link"}
@@ -702,7 +780,11 @@ export function PhaseCard({
                     <>
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</h4>
-                        <span className={`text-xs text-muted-foreground transition-opacity duration-500 ${notesSaved ? "opacity-100" : "opacity-0"}`}>Saved ✓</span>
+                        <span
+                          className={`text-xs text-muted-foreground transition-opacity duration-500 ${notesSaved ? "opacity-100" : "opacity-0"}`}
+                        >
+                          Saved ✓
+                        </span>
                       </div>
                       <textarea
                         value={adminNotes}
@@ -730,7 +812,11 @@ export function PhaseCard({
                         {notesTab === "client" && (
                           <span className="text-[10px] text-muted-foreground/60 ml-1">shared with client</span>
                         )}
-                        <span className={`ml-auto text-xs text-muted-foreground transition-opacity duration-500 ${notesSaved ? "opacity-100" : "opacity-0"}`}>Saved ✓</span>
+                        <span
+                          className={`ml-auto text-xs text-muted-foreground transition-opacity duration-500 ${notesSaved ? "opacity-100" : "opacity-0"}`}
+                        >
+                          Saved ✓
+                        </span>
                       </div>
                       {notesTab === "internal" ? (
                         <textarea
